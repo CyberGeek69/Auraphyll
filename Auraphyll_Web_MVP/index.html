@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+    <meta name="description"
+        content="Auraphyll – Precision agriculture early warning system for crop stress using satellite telemetry and AI-driven agronomic advice.">
+    <title>Auraphyll — Crop Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <!-- Leaflet core -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet.draw plugin -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="toast-container"></div>
+    <div id="app-shell">
+        <div id="map-container">
+            <div id="map"></div>
+            <div id="map-overlay-badge">
+                <span class="badge-dot"></span>
+                <span>Sentinel-2 Live</span>
+            </div>
+        </div>
+        <div id="pulse-panel">
+            <div class="sheet-handle" id="sheet-handle">
+                <div class="sheet-handle-pill"></div>
+            </div>
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="brand-block">
+                        <div class="brand-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+                                    fill="currentColor" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h1>Auraphyll Intelligence</h1>
+                            <p class="brand-sub">Satellite Crop Stress Monitor</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mode-switch-row">
+                    <div class="mode-label-group">
+                        <span class="mode-label" id="mode-label-text">Live Mode</span>
+                        <span class="mode-hint">Toggle for instant demo</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="demo-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div class="meter-section">
+                    <div id="savi-meter" class="savi-meter">
+                        <div class="meter-inner">
+                            <span class="meter-value" id="meter-value">&mdash;</span>
+                            <span class="meter-label">SAVI</span>
+                        </div>
+                    </div>
+                    <div class="meter-legend">
+                        <span class="legend-item legend-good"><i></i>Healthy &gt; 0.6</span>
+                        <span class="legend-item legend-warn"><i></i>Stressed 0.3–0.6</span>
+                        <span class="legend-item legend-bad"><i></i>Critical &lt; 0.3</span>
+                    </div>
+                </div>
+
+                <div id="ai-response" class="ai-response">
+                    <div class="ai-placeholder">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"
+                                fill="currentColor" />
+                        </svg>
+                        <span>Draw a field polygon on the map, then tap <strong>Analyze Field</strong> to receive
+                            AI-powered agronomic insight.</span>
+                    </div>
+                </div>
+
+                <div class="btn-row">
+                    <button id="analyze-btn" class="analyze-btn">
+                        <span class="btn-text">Analyze Field</span>
+                        <span class="btn-spinner"></span>
+                    </button>
+                    <button id="save-plot-btn" class="save-plot-btn" disabled title="Save current polygon as ALU plot">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"
+                                fill="currentColor" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="plot-manager" class="">
+                    <div class="plot-manager-header" id="plot-manager-toggle">
+                        <div class="plot-manager-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path
+                                    d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"
+                                    fill="currentColor" />
+                            </svg>
+                            <span>Saved Plots</span>
+                            <span class="plot-count-badge empty" id="plot-count-badge">0</span>
+                        </div>
+                        <svg class="plot-manager-chevron" viewBox="0 0 24 24" fill="none">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" fill="currentColor" />
+                        </svg>
+                    </div>
+                    <ul id="plot-list">
+                        <li class="plot-empty-state" id="plot-empty-state">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor" />
+                            </svg>
+                            <span>Draw a polygon and save it to create your first plot.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="panel-footer">
+                    <span>Powered by Sentinel-2 &amp; Gemini AI</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet core -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet.draw plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
