@@ -302,6 +302,7 @@ function initMap() {
         currentPolygon = e.layer;
         drawnItems.addLayer(currentPolygon);
         updateSaveBtnState();
+        updateAreaDisplay(currentPolygon);
     });
 
     // When a polygon is deleted via the edit toolbar
@@ -313,6 +314,14 @@ function initMap() {
             }
         });
         updateSaveBtnState();
+        updateAreaDisplay(currentPolygon);
+    });
+
+    // When a polygon is edited
+    map.on(L.Draw.Event.EDITED, function (e) {
+        if (currentPolygon) {
+            updateAreaDisplay(currentPolygon);
+        }
     });
 
     document.getElementById("analyze-btn").addEventListener("click", handleAnalyze);
@@ -323,6 +332,9 @@ function initMap() {
 
     // Save plot button
     document.getElementById("save-plot-btn").addEventListener("click", handleSavePlot);
+    
+    // Download PDF 
+    document.getElementById("download-pdf-btn").addEventListener("click", handleDownloadPdf);
 
     // Plot manager toggle
     document.getElementById("plot-manager-toggle").addEventListener("click", function () {
@@ -354,6 +366,23 @@ function extractCoordinates() {
     return coords;
 }
 
+function updateAreaDisplay(polygon) {
+    var display = document.getElementById("area-display");
+    var valueEl = document.getElementById("area-value");
+    if (!polygon || !L.GeometryUtil) {
+        display.classList.add("hidden");
+        return;
+    }
+    
+    var latlngs = polygon.getLatLngs()[0];
+    var areaSqm = L.GeometryUtil.geodesicArea(latlngs);
+    var hectares = areaSqm / 10000;
+    var acres = areaSqm / 4046.856;
+    
+    valueEl.textContent = hectares.toFixed(2) + " ha (" + acres.toFixed(2) + " acres)";
+    display.classList.remove("hidden");
+}
+
 /* ==========================================
    SCORING HELPERS
    ========================================== */
@@ -378,15 +407,36 @@ function getSaviDotClass(score) {
 
 function updateMeter(score) {
     var meter = document.getElementById("savi-meter");
+    var progressSvg = document.getElementById("meter-progress");
     var valueEl = document.getElementById("meter-value");
-    var percent = Math.min(Math.max(score, 0), 1) * 100;
-    var color = getScoreColor(score);
+    
+    var clampedScore = Math.min(Math.max(score, 0), 1);
+    var color = getScoreColor(clampedScore);
 
-    meter.style.background =
-        "conic-gradient(" + color + " 0% " + percent + "%, " + BORDER_COLOR + " " + percent + "% 100%)";
-    meter.className = "savi-meter " + getScoreClass(score);
-    valueEl.textContent = score.toFixed(2);
+    if (progressSvg) {
+        var dashoffset = 452.4 - (452.4 * clampedScore);
+        progressSvg.style.strokeDashoffset = dashoffset;
+        progressSvg.style.stroke = color;
+    }
+
+    meter.className = "savi-meter " + getScoreClass(clampedScore);
+    valueEl.textContent = clampedScore.toFixed(2);
     valueEl.style.color = color;
+}
+
+function updateNdwi(ndwi) {
+    var ndwiEl = document.getElementById("ndwi-value");
+    if (ndwiEl) {
+        ndwiEl.textContent = (typeof ndwi === 'number' && !isNaN(ndwi)) ? ndwi.toFixed(2) : "--";
+        
+        if (ndwi < -0.1) {
+            ndwiEl.style.color = "#D32F2F"; // Danger - Dry
+        } else if (ndwi < 0.2) {
+            ndwiEl.style.color = "#FFC107"; // Warn - Moderate
+        } else {
+            ndwiEl.style.color = "#1976D2"; // Good - Wet
+        }
+    }
 }
 
 function updateAdvice(text, isError) {
@@ -439,19 +489,35 @@ function handleAnalyze(optionalCoords) {
     var isDemoMode = document.getElementById("demo-toggle").checked;
     setLoading(true);
 
+    // Reset UI state from previous analysis
+    updateNdwi(null);
+    var chartCont = document.getElementById("chart-container");
+    if (chartCont) chartCont.style.display = "none";
+
+    // Clear previous heatmap overlay
+    if (window.currentHeatmapLayer) {
+        map.removeLayer(window.currentHeatmapLayer);
+        window.currentHeatmapLayer = null;
+    }
+
     // On mobile, open the sheet to show results
     BottomSheet.snapToHalf();
 
     if (isDemoMode) {
         setTimeout(function () {
             updateMeter(0.88);
+            updateNdwi(0.35);
             updateAdvice(
                 "Crop health is optimal. The mesophyll layer shows strong NIR reflectance. No immediate intervention required.",
                 false
             );
             setLoading(false);
-            // Update saved plot's lastSavi if this was a recall
             PlotManager._updateLastSavi(coords, 0.88);
+            renderHistoryChart([0.85, 0.82, 0.88]);
+            
+            if (currentPolygon) {
+                map.fitBounds(currentPolygon.getBounds(), { padding: [50, 50] });
+            }
         }, 500);
         return;
     }
@@ -489,13 +555,29 @@ function handleAnalyze(optionalCoords) {
         .then(function (data) {
             if (data.savi_score === 0 && data.gemini_advice) {
                 updateMeter(0);
+                updateNdwi(0);
                 updateAdvice(data.gemini_advice, true);
             } else {
                 updateMeter(data.savi_score);
+                updateNdwi(data.ndwi_score);
                 updateAdvice(data.gemini_advice, false);
+                
+                // Earth Engine Heatmap Overlay
+                if (data.heatmap_url) {
+                    window.currentHeatmapLayer = L.tileLayer(data.heatmap_url, {
+                        opacity: 0.75,
+                        maxZoom: 19,
+                    }).addTo(map);
+                    
+                    if (currentPolygon) {
+                        map.fitBounds(currentPolygon.getBounds(), { padding: [50, 50] });
+                    }
+                }
             }
-            setLoading(false);
             PlotManager._updateLastSavi(coords, data.savi_score);
+            if (data.savi_history && data.savi_history.length > 0) {
+                renderHistoryChart(data.savi_history);
+            }
         })
         .catch(function (err) {
             clearTimeout(timeoutId);
@@ -507,8 +589,96 @@ function handleAnalyze(optionalCoords) {
             }
             updateAdvice(message, true);
             showToast("Analysis failed. See details below.", "error");
+        })
+        .finally(function () {
             setLoading(false);
         });
+}
+
+var saviChartInstance = null;
+
+function renderHistoryChart(historyData) {
+    var container = document.getElementById("chart-container");
+    if (!historyData || historyData.length === 0) {
+        return;
+    }
+    
+    // Reverse fetched [Today, -15, -30] to chronological order [-30, -15, Today]
+    var dataChronological = [historyData[2], historyData[1], historyData[0]];
+    
+    container.style.display = "block";
+    var ctx = document.getElementById("savi-history-chart").getContext("2d");
+    
+    if (saviChartInstance) {
+        saviChartInstance.destroy();
+    }
+    
+    saviChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['-30 Days', '-15 Days', 'Today'],
+            datasets: [{
+                label: 'SAVI Trend',
+                data: dataChronological,
+                borderColor: '#1B5E20',
+                backgroundColor: 'rgba(27, 94, 32, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#43A047'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    min: 0,
+                    max: 1,
+                    ticks: { stepSize: 0.2 }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+function handleDownloadPdf() {
+    var panel = document.getElementById('pulse-panel');
+    var btn = document.getElementById("download-pdf-btn");
+    var svgOriginal = btn.innerHTML;
+    
+    var opt = {
+      margin:       0.3,
+      filename:     'Auraphyll_Report.pdf',
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    
+    btn.innerHTML = "...";
+    btn.disabled = true;
+    
+    var originalTransform = panel.style.transform;
+    var originalOverflow = panel.style.overflow;
+    panel.style.transform = 'none';
+    panel.style.overflow = 'visible';
+    
+    html2pdf().set(opt).from(panel).save().then(function() {
+        panel.style.transform = originalTransform;
+        panel.style.overflow = originalOverflow;
+        btn.innerHTML = svgOriginal;
+        btn.disabled = false;
+        showToast("PDF Report Downloaded", "success", 2000);
+    }).catch(function(err) {
+        panel.style.transform = originalTransform;
+        panel.style.overflow = originalOverflow;
+        btn.innerHTML = svgOriginal;
+        btn.disabled = false;
+        showToast("PDF Generation Failed", "error", 2000);
+    });
 }
 
 function shakeMeter() {
@@ -631,12 +801,22 @@ var PlotManager = {
         delBtn.innerHTML =
             '<svg viewBox="0 0 24 24" fill="none"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/></svg>';
 
+        // Visibility Toggle
+        var visBtn = document.createElement("button");
+        visBtn.className = "plot-visibility-btn";
+        if (plot.hidden) visBtn.classList.add("hidden-plot");
+        visBtn.title = "Toggle visibility on map";
+        visBtn.innerHTML = plot.hidden ?
+            '<svg viewBox="0 0 24 24" fill="none"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z" fill="currentColor"/></svg>'
+            :
+            '<svg viewBox="0 0 24 24" fill="none"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/></svg>';
+
         var self = this;
         var plotId = plot.id;
 
         // Click item → recall
         li.addEventListener("click", function (e) {
-            if (e.target.closest(".plot-delete-btn")) return;
+            if (e.target.closest(".plot-delete-btn") || e.target.closest(".plot-visibility-btn")) return;
             self.recallPlot(plotId);
         });
 
@@ -646,8 +826,15 @@ var PlotManager = {
             self.deletePlot(plotId);
         });
 
+        // Click visibility
+        visBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            self.toggleVisibility(plotId);
+        });
+
         li.appendChild(dot);
         li.appendChild(info);
+        li.appendChild(visBtn);
         li.appendChild(delBtn);
 
         return li;
@@ -693,6 +880,34 @@ var PlotManager = {
         showToast('Plot "' + removed.name + '" deleted.', "info", 2500);
     },
 
+    toggleVisibility: function (id) {
+        var plot = null;
+        for (var i = 0; i < this.plots.length; i++) {
+            if (this.plots[i].id === id) {
+                plot = this.plots[i];
+                break;
+            }
+        }
+        if (!plot) return;
+
+        plot.hidden = !plot.hidden;
+        this._save();
+        this._renderList();
+
+        var tgtLayer = null;
+        savedPlotsLayerGroup.eachLayer(function (layer) {
+            if (layer._plotId === id) {
+                tgtLayer = layer;
+            }
+        });
+
+        if (plot.hidden && tgtLayer) {
+            savedPlotsLayerGroup.removeLayer(tgtLayer);
+        } else if (!plot.hidden && !tgtLayer) {
+            this._drawPlotOnMap(plot);
+        }
+    },
+
     recallPlot: function (id) {
         var plot = null;
         for (var i = 0; i < this.plots.length; i++) {
@@ -717,6 +932,14 @@ var PlotManager = {
         if (currentPolygon) {
             drawnItems.removeLayer(currentPolygon);
         }
+        
+        // Break out of any active drawing tool to reset state properly
+        if (drawControl && drawControl._toolbars) {
+            for (var toolbarId in drawControl._toolbars) {
+                drawControl._toolbars[toolbarId].disable();
+            }
+        }
+
         currentPolygon = L.polygon(latlngs, {
             color: "#43A047",
             weight: 2.5,
@@ -726,6 +949,7 @@ var PlotManager = {
         });
         drawnItems.addLayer(currentPolygon);
         updateSaveBtnState();
+        updateAreaDisplay(currentPolygon);
 
         // Store coords for SAVI update tracking
         this._recallingCoords = plot.coordinates;
@@ -766,7 +990,9 @@ var PlotManager = {
     _drawAllOnMap: function () {
         savedPlotsLayerGroup.clearLayers();
         for (var i = 0; i < this.plots.length; i++) {
-            this._drawPlotOnMap(this.plots[i]);
+            if (!this.plots[i].hidden) {
+                this._drawPlotOnMap(this.plots[i]);
+            }
         }
     },
 
@@ -830,12 +1056,12 @@ function handleSavePlot() {
 /* ==========================================
    WINDOW RESIZE — Re-init bottom sheet
    ========================================== */
-var resizeTimer;
+var resizeRafTimer;
 window.addEventListener("resize", function () {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () {
+    if (resizeRafTimer) window.cancelAnimationFrame(resizeRafTimer);
+    resizeRafTimer = window.requestAnimationFrame(function () {
         if (map) map.invalidateSize();
-    }, 200);
+    });
 });
 
 /* ==========================================

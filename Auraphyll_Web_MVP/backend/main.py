@@ -1,3 +1,4 @@
+import os
 import datetime
 import time
 import requests
@@ -7,12 +8,18 @@ import ee
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ==========================================
 # 1. CREDENTIALS & CONFIGURATION
 # ==========================================
-GEMINI_API_KEY = "AIzaSyDao42z43m2flAvu-tZKwQkumdI1-roCC8"
-GEE_PROJECT_ID = "964783763584"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEE_PROJECT_ID = os.getenv("GEE_PROJECT_ID")
+
+if GEMINI_API_KEY is None or GEE_PROJECT_ID is None:
+    print("[WARN] CRITICAL: Missing GEMINI_API_KEY or GEE_PROJECT_ID in environment variables.")
 
 try:
     ee.Initialize(project=GEE_PROJECT_ID)
@@ -53,10 +60,16 @@ class AnalyzeRequest(BaseModel):
 class AnalyzeResponse(BaseModel):
     savi_score: float
     gemini_advice: str
+    ndwi_score: float = 0.0
+    heatmap_url: str = ""
+    savi_history: List[float] = []
 
 CLOUD_FALLBACK = AnalyzeResponse(
     savi_score=0.0,
     gemini_advice="Satellite telemetry currently obscured by dense cloud cover. Please rely on ground-based visual inspection.",
+    ndwi_score=0.0,
+    heatmap_url="",
+    savi_history=[]
 )
 
 # ==========================================
@@ -79,7 +92,7 @@ def compute_savi(coords_list):
 
     count = collection.size().getInfo()
     if count == 0:
-        return None, buffered_polygon
+        return None, 0.0, "", buffered_polygon
 
     best_image = ee.Image(collection.first())
 
@@ -106,12 +119,91 @@ def compute_savi(coords_list):
 
     savi_value = mean_savi.getInfo()
     if not savi_value:
-        return None, buffered_polygon
+        return None, 0.0, "", buffered_polygon
     savi_key = list(savi_value.keys())[0]
     result = savi_value[savi_key]
     if result is None:
-        return None, buffered_polygon
-    return result, buffered_polygon
+        return None, 0.0, "", buffered_polygon
+
+    # Calculate NDWI using B3 (Green) and B8 (NIR)
+    ndwi = masked_image.normalizedDifference(['B3', 'B8']).rename('NDWI')
+    mean_ndwi = ndwi.reduceRegion(
+        reducer=ee.Reducer.mean(),
+        geometry=buffered_polygon,
+        scale=10,
+        maxPixels=1e9,
+    )
+    ndwi_value = mean_ndwi.getInfo()
+    ndwi_result = ndwi_value.get('NDWI', 0.0) if ndwi_value else 0.0
+    if ndwi_result is None:
+        ndwi_result = 0.0
+
+    # Generate Heatmap URLs using SAVI
+    map_id_dict = savi.getMapId({
+        'min': 0.0,
+        'max': 1.0,
+        'palette': ['#d73027', '#fdae61', '#a6d96a', '#1a9850']
+    })
+    heatmap_url = map_id_dict['tile_fetcher'].url_format if 'tile_fetcher' in map_id_dict else ""
+
+    return result, ndwi_result, heatmap_url, buffered_polygon
+
+def compute_savi_history(coords_list):
+    polygon = ee.Geometry.Polygon([coords_list])
+    buffered_polygon = polygon.buffer(-5)
+    
+    today = datetime.datetime.utcnow()
+    dates = [today, today - datetime.timedelta(days=15), today - datetime.timedelta(days=30)]
+    
+    history = []
+    for d in dates:
+        start_date = d - datetime.timedelta(days=7)
+        end_date = d + datetime.timedelta(days=1)
+        
+        collection = (
+            ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+            .filterBounds(buffered_polygon)
+            .filterDate(start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
+            .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 30))
+            .sort("CLOUDY_PIXEL_PERCENTAGE")
+        )
+        
+        try:
+            count = collection.size().getInfo()
+            if count == 0:
+                history.append(0.0)
+                continue
+                
+            best_image = ee.Image(collection.first())
+            scl = best_image.select("SCL")
+            cloud_mask = scl.neq(8).And(scl.neq(9)).And(scl.neq(3))
+            masked_image = best_image.updateMask(cloud_mask)
+            
+            savi = masked_image.expression(
+                "((NIR - RED) / (NIR + RED + L)) * (1 + L)",
+                {
+                    "NIR": masked_image.select("B8"),
+                    "RED": masked_image.select("B4"),
+                    "L": 0.5,
+                },
+            )
+            
+            mean_savi = savi.reduceRegion(
+                reducer=ee.Reducer.mean(),
+                geometry=buffered_polygon,
+                scale=10,
+                maxPixels=1e9,
+            )
+            
+            val = mean_savi.getInfo()
+            if val is not None and list(val.values())[0] is not None:
+                history.append(round(float(list(val.values())[0]), 4))
+            else:
+                history.append(0.0)
+        except Exception:
+            history.append(0.0)
+            
+    return history
 
 # ==========================================
 # 5. CORE LOGIC: GEMINI AI (DIRECT API BYPASS)
@@ -202,7 +294,8 @@ def analyze(payload: AnalyzeRequest):
 
     # Step A: Get Satellite Data
     try:
-        raw_score, _ = compute_savi(coords_list)
+        raw_score, ndwi_score, heatmap_url, _ = compute_savi(coords_list)
+        savi_history = compute_savi_history(coords_list)
     except Exception as e:
         print(f"[WARN] Earth Engine Error: {e}")
         return CLOUD_FALLBACK
@@ -212,7 +305,8 @@ def analyze(payload: AnalyzeRequest):
         return CLOUD_FALLBACK
 
     mean_savi_score = round(float(raw_score), 4)
-    print(f"[OK] SAVI Calculated: {mean_savi_score}")
+    ndwi_score_rounded = round(float(ndwi_score), 4)
+    print(f"[OK] SAVI Calculated: {mean_savi_score}, NDWI: {ndwi_score_rounded}")
 
     # Step B: Get AI Agronomist Advice
     try:
@@ -226,4 +320,10 @@ def analyze(payload: AnalyzeRequest):
         )
 
     # Step C: Send everything back to the Leaflet Frontend
-    return AnalyzeResponse(savi_score=mean_savi_score, gemini_advice=advice_text)
+    return AnalyzeResponse(
+        savi_score=mean_savi_score, 
+        gemini_advice=advice_text,
+        ndwi_score=ndwi_score_rounded,
+        heatmap_url=heatmap_url,
+        savi_history=savi_history
+    )
