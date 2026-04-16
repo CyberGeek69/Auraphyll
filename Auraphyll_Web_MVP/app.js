@@ -108,6 +108,7 @@ function onLocationError(e) {
 var BottomSheet = {
     panel: null,
     handle: null,
+    header: null,
     startY: 0,
     startTranslate: 0,
     currentTranslate: 0,
@@ -119,18 +120,32 @@ var BottomSheet = {
     init: function () {
         this.panel = document.getElementById("pulse-panel");
         this.handle = document.getElementById("sheet-handle");
+        this.header = this.panel.querySelector(".panel-header");
 
         if (!this._isMobile()) return;
 
         this.sheetHeight = this.panel.offsetHeight;
         this.peekH = 88;
 
-        this.handle.addEventListener("touchstart", this._onTouchStart.bind(this), { passive: true });
-        this.handle.addEventListener("touchmove", this._onTouchMove.bind(this), { passive: false });
-        this.handle.addEventListener("touchend", this._onTouchEnd.bind(this), { passive: true });
+        // Prevent map panning when interacting with the bottom sheet
+        L.DomEvent.disableClickPropagation(this.panel);
+        L.DomEvent.disableScrollPropagation(this.panel);
 
-        // Also allow tapping handle to toggle
+        // Bind drag events to both the handle AND the full panel header
+        var dragTargets = [this.handle, this.header];
+        var self = this;
+        for (var i = 0; i < dragTargets.length; i++) {
+            if (!dragTargets[i]) continue;
+            dragTargets[i].addEventListener("touchstart", self._onTouchStart.bind(self), { passive: false });
+            dragTargets[i].addEventListener("touchmove", self._onTouchMove.bind(self), { passive: false });
+            dragTargets[i].addEventListener("touchend", self._onTouchEnd.bind(self), { passive: true });
+        }
+
+        // Also allow tapping handle/header to toggle
         this.handle.addEventListener("click", this._onHandleClick.bind(this));
+        if (this.header) {
+            this.header.addEventListener("click", this._onHandleClick.bind(this));
+        }
     },
 
     _isMobile: function () {
@@ -145,6 +160,8 @@ var BottomSheet = {
     },
 
     _onTouchStart: function (e) {
+        // Stop touch from propagating to the Leaflet map underneath
+        e.stopPropagation();
         this.isDragging = true;
         this.panel.classList.add("sheet-dragging");
         this.startY = e.touches[0].clientY;
@@ -156,6 +173,7 @@ var BottomSheet = {
     _onTouchMove: function (e) {
         if (!this.isDragging) return;
         e.preventDefault();
+        e.stopPropagation();
         var deltaY = e.touches[0].clientY - this.startY;
         var newTranslate = this.startTranslate + deltaY;
 
@@ -167,7 +185,7 @@ var BottomSheet = {
         this.panel.style.transform = "translateY(" + newTranslate + "px)";
     },
 
-    _onTouchEnd: function () {
+    _onTouchEnd: function (e) {
         if (!this.isDragging) return;
         this.isDragging = false;
         this.panel.classList.remove("sheet-dragging");
@@ -191,7 +209,9 @@ var BottomSheet = {
         }
     },
 
-    _onHandleClick: function () {
+    _onHandleClick: function (e) {
+        // Prevent click from reaching the map
+        if (e) e.stopPropagation();
         if (this.state === "peek") {
             this._snapTo("half");
         } else if (this.state === "half") {

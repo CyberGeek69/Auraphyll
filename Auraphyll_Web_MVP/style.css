@@ -28,8 +28,8 @@
     --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
     --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --sheet-peek: 88px;
-    --sheet-half: 50vh;
-    --sheet-full: 92vh;
+    --sheet-half: 50dvh;
+    --sheet-full: 92dvh;
 }
 
 html,
@@ -1156,6 +1156,14 @@ body {
         background: #9CA3AF;
     }
 
+    /* -- Panel header becomes draggable touch zone on mobile -- */
+    .panel-header {
+        cursor: grab;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
     .panel-inner {
         padding: 8px 20px 24px;
         gap: 18px;
@@ -1220,21 +1228,69 @@ body {
         min-width: 52px;
     }
 
-    /* Leaflet standard & draw toolbar touch overrides (48x48 min) */
+    /* ---- Leaflet Draw Toolbar — Mobile Touch Overrides ---- */
+    .leaflet-touch .leaflet-bar,
+    .leaflet-draw-toolbar {
+        border: none !important;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18) !important;
+        border-radius: 14px !important;
+        overflow: hidden;
+        margin-right: 14px !important;
+        margin-top: 10px !important;
+        background: rgba(255, 255, 255, 0.92) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+    }
+
     .leaflet-touch .leaflet-bar a,
     .leaflet-touch .leaflet-control-zoom a,
     .leaflet-draw-toolbar a {
-        width: 48px !important;
-        height: 48px !important;
-        line-height: 48px !important;
+        width: 46px !important;
+        height: 46px !important;
+        line-height: 46px !important;
+        border: none !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+        background: transparent !important;
+        color: #374151;
+        transition: background 0.2s ease;
+    }
+
+    .leaflet-touch .leaflet-bar a:last-child,
+    .leaflet-draw-toolbar a:last-child {
+        border-bottom: none !important;
+    }
+
+    .leaflet-touch .leaflet-bar a:active,
+    .leaflet-draw-toolbar a:active {
+        background: rgba(27, 94, 32, 0.1) !important;
+    }
+
+    /* Scale up the tiny sprite icons inside draw buttons */
+    .leaflet-draw-toolbar a .leaflet-draw-draw-polygon,
+    .leaflet-draw-toolbar a .leaflet-draw-edit-edit,
+    .leaflet-draw-toolbar a .leaflet-draw-edit-remove {
+        background-size: 320px 30px !important;
+    }
+
+    /* Context action buttons (Finish, Cancel, Delete) */
+    .leaflet-draw-actions {
+        border-radius: 10px !important;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15) !important;
     }
 
     .leaflet-draw-actions a {
-        min-height: 48px;
-        line-height: 48px;
-        padding: 0 16px;
+        min-height: 46px;
+        line-height: 46px;
+        padding: 0 18px;
         font-size: 14px;
+        font-weight: 500;
         display: block;
+    }
+
+    /* Edit toolbar (separate from draw) */
+    .leaflet-draw-toolbar.leaflet-draw-toolbar-top {
+        margin-bottom: 8px !important;
     }
 
     #toast-container {

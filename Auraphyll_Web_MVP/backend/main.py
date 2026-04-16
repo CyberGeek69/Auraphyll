@@ -243,12 +243,12 @@ def generate_advice(mean_savi_score):
     }
     
     last_error = None
+    MAX_RETRIES = 3
     
-    for model in GEMINI_MODELS:
+    for i, model in enumerate(GEMINI_MODELS):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
         
-        # Retry up to 3 times per model with exponential backoff
-        for attempt in range(3):
+        for attempt in range(MAX_RETRIES):
             try:
                 response = requests.post(
                     url,
@@ -259,30 +259,33 @@ def generate_advice(mean_savi_score):
                 
                 if response.status_code == 200:
                     text = _extract_text_from_response(response.json())
-                    print(f"  [OK] Gemini advice generated via {model} (attempt {attempt + 1})")
+                    print(f"  [OK] Gemini advice generated via {model}")
                     return text
                 
-                # Retryable errors: 429 (rate limit), 503 (overloaded)
-                if response.status_code in (429, 503):
-                    wait = (2 ** attempt) + 0.5
-                    print(f"  [WAIT] {model} returned {response.status_code}, retrying in {wait:.1f}s (attempt {attempt + 1}/3)")
-                    time.sleep(wait)
+                if response.status_code in (429, 500, 502, 503):
                     last_error = f"{model} HTTP {response.status_code}"
+                    print(f"  [WARN] {last_error}. Attempt {attempt + 1}/{MAX_RETRIES}.")
+                    if attempt < MAX_RETRIES - 1:
+                        sleep_time = (attempt + 1) * 3
+                        print(f"  [WAIT] Sleeping {sleep_time} seconds before retry...")
+                        time.sleep(sleep_time)
                     continue
                 
                 # Non-retryable error
                 last_error = f"{model} HTTP {response.status_code}: {response.text[:200]}"
                 print(f"  [WARN] {last_error}")
-                break  # Try next model
+                break # Break out of attempt loop, proceed to next model
                 
             except requests.exceptions.Timeout:
-                last_error = f"{model} request timed out (attempt {attempt + 1})"
-                print(f"  [WAIT] {last_error}")
+                last_error = f"{model} request timed out"
+                print(f"  [WARN] {last_error}. Attempt {attempt + 1}/{MAX_RETRIES}.")
+                if attempt < MAX_RETRIES - 1:
+                    time.sleep(3)
                 continue
             except Exception as e:
                 last_error = f"{model} error: {repr(e)}"
                 print(f"  [WARN] {last_error}")
-                break  # Try next model
+                break # Break out of attempt loop, proceed to next model
     
     raise Exception(f"All Gemini models failed. Last error: {last_error}")
 # ==========================================

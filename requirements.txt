@@ -1,0 +1,2 @@
+# Dummy requirements.txt to trigger Railway's Python (Nixpacks) builder
+# The actual dependencies are installed from the backend subdirectory when Railway changes directories.
