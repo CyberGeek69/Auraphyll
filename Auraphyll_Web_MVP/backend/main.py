@@ -6,11 +6,19 @@ from typing import List
 
 import ee
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ==========================================
+# 0. PATH CONFIGURATION
+# ==========================================
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 # ==========================================
 # 1. CREDENTIALS & CONFIGURATION
@@ -39,6 +47,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==========================================
+# 2.5 FRONTEND SERVING
+# ==========================================
+@app.get("/")
+async def read_index():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+# Mount the rest of the frontend files (app.js, style.css, etc.)
+app.mount("/", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+
 
 # ==========================================
 # 3. DATA MODELS
