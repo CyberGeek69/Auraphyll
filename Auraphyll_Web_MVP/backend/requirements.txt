@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+google-generativeai
 earthengine-api
 requests
 pydantic
