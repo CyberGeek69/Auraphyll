@@ -1,12 +1,11 @@
 {
-  "$schema": "https://railway.app/railway.schema.json",
+  "builder": "NIXPACKS",
   "build": {
-    "builder": "NIXPACKS"
+    "rootDirectory": "Auraphyll_Web_MVP/backend",
+    "watchPatterns": ["Auraphyll_Web_MVP/backend/**"]
   },
   "deploy": {
-    "startCommand": "cd Auraphyll_Web_MVP/backend && python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  },
-  "rootDirectory": "Auraphyll_Web_MVP/backend"
+    "startCommand": "python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}",
+    "restartPolicyType": "ON_FAILURE"
+  }
 }
