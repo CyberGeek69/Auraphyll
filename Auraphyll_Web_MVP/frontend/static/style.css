@@ -34,7 +34,7 @@
 
 html,
 body {
-    min-height: 100dvh;
+    height: 100vh;
     width: 100%;
     margin: 0;
     padding: 0;
@@ -43,8 +43,7 @@ body {
     color: var(--text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow-x: hidden;
-    overscroll-behavior-y: none;
+    overflow: hidden;
 }
 
 /* ==========================================
@@ -53,12 +52,15 @@ body {
 #app-shell {
     display: flex;
     width: 100%;
+    height: 100vh;
+    overflow: hidden;
 }
 
 #map-container {
     position: relative;
-    flex: 0 0 65%;
-    height: 100%;
+    flex: 1;
+    height: 100vh;
+    min-width: 0;
 }
 
 #map {
@@ -210,8 +212,8 @@ body {
    SIDEBAR / PULSE PANEL — DESKTOP
    ========================================== */
 #pulse-panel {
-    flex: 0 0 35%;
-    height: 100%;
+    flex: 0 0 400px;
+    height: 100vh;
     background: var(--bg);
     border-left: 1px solid var(--border);
     overflow-y: auto;
@@ -1072,36 +1074,36 @@ body {
 }
 
 /* ==========================================
-   MOBILE — NATURAL-FLOW STACKED LAYOUT
-   The page scrolls naturally. Map on top,
-   dashboard below. No position:fixed locks.
+   MOBILE — SCROLLABLE BOTTOM-SHEET LAYOUT
+   Desktop locks are removed. Page scrolls
+   naturally. Map on top, dashboard below.
    ========================================== */
 @media (max-width: 768px) {
-    /* 1. Force the browser to allow vertical scrolling */
+
+    /* 1. DESTROY ALL SCROLL LOCKS */
     html, body {
-        margin: 0; 
-        padding: 0;
         height: auto !important;
         min-height: 100%;
-        overflow-y: auto !important; 
-        overflow-x: hidden !important;
-        background-color: #f8f9fa;
+        margin: 0;
+        padding: 0;
+        overflow-y: auto !important;
+        overflow-x: hidden;
     }
-    
+
     #app-shell {
         display: block;
         width: 100%;
-        height: auto;
+        height: auto !important;
+        overflow: visible !important;
     }
 
-    /* 2. Map takes up 70% of the viewport height */
+    /* 2. MAP: 75vh — large drawing canvas */
     #map-container {
-        height: 70vh !important;
+        height: 75vh;
         width: 100%;
         position: relative;
         z-index: 1;
         flex: none;
-        max-height: none;
     }
 
     #map {
@@ -1109,26 +1111,36 @@ body {
         height: 100%;
     }
 
-    /* 3. Dashboard overlaps the map slightly and allows natural downward scrolling */
+    /* 3. DASHBOARD: bottom-sheet overlapping map */
     #pulse-panel {
         position: relative;
-        z-index: 1000;
-        background: #ffffff;
-        min-height: 60vh; /* Ensures there is enough content to scroll */
-        margin-top: -25px; /* Overlaps the map for the bottom-sheet look */
+        z-index: 10;
+        width: 100%;
+        height: auto;
+        min-height: 60vh;
+        flex: none;
+        margin-top: -25px;
         border-radius: 25px 25px 0 0;
         padding: 25px 20px 50px 20px;
-        box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
-        height: auto;
-        overflow-y: visible;
-        overflow-x: hidden;
+        background: #ffffff;
+        box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.15);
         border-left: none;
-        border-top: none;
-        transform: none;
-        flex: none;
-        box-sizing: border-box;
+        overflow: visible;
     }
 
+    .sheet-handle {
+        display: none !important;
+    }
+
+    .panel-inner {
+        padding: 0;
+        gap: 16px;
+        min-height: auto;
+        height: auto;
+        overflow: visible;
+    }
+
+    /* 4. BUTTONS: full-width stacked */
     .control-buttons {
         display: flex;
         flex-direction: column;
@@ -1145,10 +1157,7 @@ body {
         font-weight: 600;
     }
 
-    .sheet-handle { display: none !important; }
-
-    /* Retain necessary fixes for internal scaling */
-    .panel-inner { padding: 0; gap: 16px; min-height: auto; height: auto; overflow: visible; }
+    /* 5. COMPONENT SCALING */
     #map-overlay-badge { top: 12px; left: 12px; font-size: 10px; padding: 6px 12px; }
     .brand-block h1 { font-size: 17px; }
     .brand-icon { width: 40px; height: 40px; border-radius: 12px; }
@@ -1161,21 +1170,45 @@ body {
     .mode-switch-row { padding: 12px 14px; }
     .analyze-btn { min-height: 52px; font-size: 15px; padding: 14px 20px; }
     .save-plot-btn { min-height: 52px; min-width: 52px; }
-
-    .leaflet-touch .leaflet-bar,
-    .leaflet-draw-toolbar { border: none !important; box-shadow: none !important; background: transparent !important; margin-right: 10px !important; margin-top: 8px !important; }
-    .leaflet-touch .leaflet-bar a,
-    .leaflet-touch .leaflet-control-zoom a { min-width: 44px !important; min-height: 44px !important; width: 44px !important; height: 44px !important; line-height: 44px !important; margin-bottom: 6px !important; border: none !important; border-radius: 10px !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important; }
-    .leaflet-draw-toolbar a { width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important; line-height: 44px !important; margin-bottom: 6px !important; border: none !important; border-radius: 10px !important; background-color: rgba(255, 255, 255, 0.95) !important; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important; }
-    .leaflet-touch .leaflet-bar a:last-child,
-    .leaflet-draw-toolbar a:last-child { border-bottom: none !important; }
-    .leaflet-draw-actions { border-radius: 8px !important; overflow: hidden; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15) !important; }
-    .leaflet-draw-actions a { min-height: 40px; line-height: 40px; padding: 0 14px; font-size: 13px; font-weight: 500; }
     #toast-container { top: 12px; width: 90%; }
     .toast { max-width: 100%; font-size: 12px; padding: 12px 16px; }
     #plot-list { max-height: 160px; }
     .plot-item { padding: 10px 14px; min-height: 48px; }
     .plot-delete-btn { width: 40px; height: 40px; }
+
+    /* 6. LEAFLET ZOOM CONTROLS — safe to resize (text-based +/−) */
+    .leaflet-touch .leaflet-control-zoom a {
+        width: 40px !important;
+        height: 40px !important;
+        line-height: 40px !important;
+        border-radius: 10px !important;
+        border: none !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+        margin-bottom: 4px !important;
+    }
+
+    /* 7. LEAFLET DRAW TOOLBAR — DO NOT override size or background.
+       The draw buttons use CSS background-image sprites (spritesheet.svg).
+       Changing width/height without scaling background-size/position
+       makes the icons invisible. We ONLY style the container. */
+    .leaflet-draw-toolbar {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .leaflet-draw-actions {
+        border-radius: 8px !important;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .leaflet-draw-actions a {
+        min-height: 36px;
+        line-height: 36px;
+        padding: 0 14px;
+        font-size: 13px;
+        font-weight: 500;
+    }
 }
 
 @media (max-width: 380px) {
