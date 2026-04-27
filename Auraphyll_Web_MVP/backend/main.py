@@ -39,9 +39,17 @@ try:
     if ee_service_account:
         # Railway Cloud Deployment Route
         credentials_dict = json.loads(ee_service_account)
-        creds = service_account.Credentials.from_service_account_info(credentials_dict)
+        
+        # Define scopes explicitly during creation to prevent OAuth formatting bugs
+        SCOPES = [
+            'https://www.googleapis.com/auth/earthengine',
+            'https://www.googleapis.com/auth/cloud-platform'
+        ]
+        creds = service_account.Credentials.from_service_account_info(credentials_dict, scopes=SCOPES)
+        
+        # Initialize using the fully scoped credentials
         ee.Initialize(credentials=creds, project=gee_project)
-        print("Earth Engine Initialized via Service Account JSON.")
+        print("Earth Engine Initialized via Service Account JSON with explicit scopes.")
     else:
         # Local Development Fallback Route
         ee.Initialize(project=gee_project)
