@@ -3,6 +3,8 @@ import datetime
 import time
 import requests
 from typing import List
+import json
+from google.oauth2 import service_account
 
 import ee
 from fastapi import FastAPI, HTTPException
@@ -30,10 +32,22 @@ if GEMINI_API_KEY is None or GEE_PROJECT_ID is None:
     print("[WARN] CRITICAL: Missing GEMINI_API_KEY or GEE_PROJECT_ID in environment variables.")
 
 try:
-    ee.Initialize(project=GEE_PROJECT_ID)
-    print("[OK] Earth Engine Initialized Successfully")
+    # Fetch credentials from environment
+    ee_service_account = os.environ.get('EE_SERVICE_ACCOUNT_JSON')
+    gee_project = os.environ.get('GEE_PROJECT_ID', 'auraphyll-mvp')
+
+    if ee_service_account:
+        # Railway Cloud Deployment Route
+        credentials_dict = json.loads(ee_service_account)
+        creds = service_account.Credentials.from_service_account_info(credentials_dict)
+        ee.Initialize(credentials=creds, project=gee_project)
+        print("Earth Engine Initialized via Service Account JSON.")
+    else:
+        # Local Development Fallback Route
+        ee.Initialize(project=gee_project)
+        print("Earth Engine Initialized via default local credentials.")
 except Exception as e:
-    print(f"[WARN] CRITICAL: Earth Engine failed to initialize. Error: {e}")
+    print(f"CRITICAL: Earth Engine failed to initialize: {e}")
 
 # ==========================================
 # 2. FASTAPI SETUP
@@ -52,11 +66,11 @@ app.add_middleware(
 # 2.5 FRONTEND SERVING
 # ==========================================
 @app.get("/")
-async def read_index():
+async def serve_frontend():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-# Mount the rest of the frontend files (app.js, style.css, etc.)
-app.mount("/", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+# Mount the rest of the frontend files
+app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_DIR, "static")), name="static")
 
 
 # ==========================================
