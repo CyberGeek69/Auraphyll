@@ -180,10 +180,10 @@ def compute_savi(coords_list):
         ndwi_result = 0.0
 
     # Generate Heatmap URLs using SAVI
-    map_id_dict = savi.getMapId({
-        'min': 0.0,
-        'max': 1.0,
-        'palette': ['#d73027', '#fdae61', '#a6d96a', '#1a9850']
+    clipped_savi = savi.clip(polygon)
+    map_id_dict = clipped_savi.getMapId({
+        'min': -1, 'max': 1, 
+        'palette': ['red', 'orange', 'yellow', 'green', 'darkgreen']
     })
     heatmap_url = map_id_dict['tile_fetcher'].url_format if 'tile_fetcher' in map_id_dict else ""
 

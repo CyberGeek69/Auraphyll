@@ -9,6 +9,7 @@ var drawControl;
 var currentPolygon = null;
 var isProcessing = false;
 var gpsMarker = null;
+var saviLayer = null;
 
 var PRIMARY = "#1B5E20";
 var AMBER = "#FFC107";
@@ -350,6 +351,24 @@ function initMap() {
         label.textContent = this.checked ? "Demo Mode" : "Live Mode";
     });
 
+    document.getElementById('toggleHeatmap').addEventListener('click', () => {
+        if (map.hasLayer(saviLayer)) {
+            map.removeLayer(saviLayer);
+        } else if (saviLayer) {
+            map.addLayer(saviLayer);
+        }
+    });
+
+    document.getElementById('clearMap').addEventListener('click', () => {
+        if (drawnItems) drawnItems.clearLayers();
+        if (saviLayer) map.removeLayer(saviLayer);
+        document.getElementById('meter-value').innerText = '--';
+        document.getElementById('ndwi-value').innerText = '--';
+        currentPolygon = null;
+        updateSaveBtnState();
+        updateAreaDisplay(null);
+    });
+
     // Save plot button
     document.getElementById("save-plot-btn").addEventListener("click", handleSavePlot);
     
@@ -477,10 +496,10 @@ function setLoading(active) {
     btn.disabled = active;
     if (active) {
         btn.classList.add("loading");
-        textEl.textContent = "Analyzing\u2026";
+        textEl.textContent = "Processing Satellite Data...";
     } else {
         btn.classList.remove("loading");
-        textEl.textContent = "Analyze Field";
+        textEl.textContent = "Calculate SAVI";
     }
 }
 
@@ -515,9 +534,9 @@ function handleAnalyze(optionalCoords) {
     if (chartCont) chartCont.style.display = "none";
 
     // Clear previous heatmap overlay
-    if (window.currentHeatmapLayer) {
-        map.removeLayer(window.currentHeatmapLayer);
-        window.currentHeatmapLayer = null;
+    if (saviLayer) {
+        map.removeLayer(saviLayer);
+        saviLayer = null;
     }
 
     // On mobile, open the sheet to show results
@@ -584,7 +603,7 @@ function handleAnalyze(optionalCoords) {
                 
                 // Earth Engine Heatmap Overlay
                 if (data.heatmap_url) {
-                    window.currentHeatmapLayer = L.tileLayer(data.heatmap_url, {
+                    saviLayer = L.tileLayer(data.heatmap_url, {
                         opacity: 0.75,
                         maxZoom: 19,
                     }).addTo(map);

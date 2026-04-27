@@ -1359,3 +1359,20 @@ body {
         gap: 8px;
     }
 }
+
+@media (max-width: 768px) {
+    #app-shell {
+        flex-direction: column;
+        height: auto;
+    }
+    #map-container, #map {
+        width: 100%;
+        height: 400px;
+        flex: none;
+    }
+    #pulse-panel {
+        width: 100%;
+        padding: 20px;
+        flex: none;
+    }
+}
