@@ -257,17 +257,12 @@ body {
     gap: 14px;
 }
 
-.brand-icon {
-    width: 48px;
+.custom-brand-logo {
+    width: 48px; /* Matches the height of the title + subtitle */
     height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #1B4332, #2D6A4F);
-    color: #fff;
-    box-shadow: 0 4px 14px rgba(27, 67, 50, 0.3);
-    flex-shrink: 0;
+    object-fit: contain;
+    margin-right: 15px;
+    border-radius: 8px; /* Optional: gives the image soft edges */
 }
 
 .brand-block h1 {
@@ -1160,8 +1155,7 @@ body {
     /* 5. COMPONENT SCALING */
     #map-overlay-badge { top: 12px; left: 12px; font-size: 10px; padding: 6px 12px; }
     .brand-block h1 { font-size: 17px; }
-    .brand-icon { width: 40px; height: 40px; border-radius: 12px; }
-    .brand-icon svg { width: 22px; height: 22px; }
+    .custom-brand-logo { width: 40px; height: 40px; margin-right: 10px; }
     .meter-section { padding: 12px 0 8px; }
     .savi-meter { width: 120px; height: 120px; }
     .meter-inner { width: 100px; height: 100px; }
