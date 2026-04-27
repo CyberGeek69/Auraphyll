@@ -264,6 +264,7 @@ body {
     min-width: 48px;
     object-fit: contain;
     margin-right: 15px;
+    border-radius: 12px;
 }
 
 .brand-block h1 {
