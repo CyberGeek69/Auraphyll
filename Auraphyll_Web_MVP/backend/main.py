@@ -77,6 +77,10 @@ app.add_middleware(
 async def serve_frontend():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
+@app.get("/auraphyll-logo.png")
+async def serve_logo():
+    return FileResponse(os.path.join(FRONTEND_DIR, "auraphyll-logo.png"))
+
 # Mount the rest of the frontend files
 app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_DIR, "static")), name="static")
 

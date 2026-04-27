@@ -258,11 +258,12 @@ body {
 }
 
 .custom-brand-logo {
-    width: 48px; /* Matches the height of the title + subtitle */
-    height: 48px;
+    display: block !important;
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px;
     object-fit: contain;
     margin-right: 15px;
-    border-radius: 8px; /* Optional: gives the image soft edges */
 }
 
 .brand-block h1 {
