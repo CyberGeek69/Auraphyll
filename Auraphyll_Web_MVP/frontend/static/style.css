@@ -1362,18 +1362,20 @@ body {
 
 @media (max-width: 768px) {
     html, body {
-        overflow-y: auto !important;
-        position: static !important;
-        height: auto !important;
+        overflow: hidden !important;
+        position: fixed !important;
+        margin: 0;
+        padding: 0;
+        height: 100vh !important;
     }
     #app-shell {
         flex-direction: column;
-        height: auto;
+        height: 100vh;
         position: static;
     }
     #map-container {
         width: 100%;
-        height: 50vh;
+        height: 45vh !important;
         flex: none;
     }
     #map {
@@ -1382,9 +1384,12 @@ body {
     }
     #pulse-panel {
         width: 100%;
-        padding: 20px;
+        height: 55vh !important;
         flex: none;
-        overflow: visible;
+        margin-top: 0 !important;
+        overflow-y: auto;
+        padding-bottom: 30px;
+        position: static !important;
         transform: none !important;
         border-left: none;
         border-top: 1px solid var(--border);
@@ -1392,4 +1397,31 @@ body {
     .sheet-handle {
         display: none !important;
     }
+}
+
+.control-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+.control-buttons .btn, .control-buttons button {
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+#toggleHeatmap {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+}
+#clearMap {
+    border: none;
+    background: var(--danger);
+    color: #fff;
 }

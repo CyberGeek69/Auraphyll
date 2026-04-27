@@ -383,12 +383,10 @@ function initMap() {
 
     // Initialize bottom sheet (mobile only) - disabled for stacked mobile layout
     // BottomSheet.init();
-    window.addEventListener('resize', function() {
-        if (map) map.invalidateSize();
+    window.addEventListener('resize', () => {
+        setTimeout(() => { map.invalidateSize(); }, 500);
     });
-    setTimeout(function() {
-        if (map) map.invalidateSize();
-    }, 500);
+    setTimeout(() => { map.invalidateSize(); }, 500);
 
     // Initialize plot manager — load saved plots
     PlotManager.init();
