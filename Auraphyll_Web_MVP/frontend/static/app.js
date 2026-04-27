@@ -404,12 +404,15 @@ function initMap() {
         pm.classList.toggle("collapsed");
     });
 
-    // Initialize bottom sheet (mobile only) - disabled for stacked mobile layout
-    // BottomSheet.init();
-    window.addEventListener('resize', () => {
-        setTimeout(() => { map.invalidateSize(); }, 500);
+    // Map rendering stability: invalidate on resize + initial load
+    // Multiple timeouts ensure tiles render even if container is still settling
+    window.addEventListener('resize', function () {
+        setTimeout(function () { if (map) map.invalidateSize(); }, 200);
+        setTimeout(function () { if (map) map.invalidateSize(); }, 600);
     });
-    setTimeout(() => { map.invalidateSize(); }, 500);
+    setTimeout(function () { if (map) map.invalidateSize(); }, 100);
+    setTimeout(function () { if (map) map.invalidateSize(); }, 500);
+    setTimeout(function () { if (map) map.invalidateSize(); }, 1500);
 
     // Initialize plot manager — load saved plots
     PlotManager.init();
@@ -583,8 +586,6 @@ function handleAnalyze(optionalCoords) {
         saviLayer = null;
     }
 
-    // On mobile, open the sheet to show results
-    BottomSheet.snapToHalf();
 
     if (isDemoMode) {
         setTimeout(function () {
@@ -1138,7 +1139,8 @@ function handleSavePlot() {
 }
 
 /* ==========================================
-   WINDOW RESIZE — Re-init bottom sheet
+   WINDOW RESIZE — Immediate map invalidation (RAF)
+   Complements the delayed invalidateSize in initMap.
    ========================================== */
 var resizeRafTimer;
 window.addEventListener("resize", function () {

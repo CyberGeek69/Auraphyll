@@ -34,28 +34,26 @@
 
 html,
 body {
-    height: 100dvh;
-    width: 100vw;
-    position: fixed;
+    min-height: 100dvh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--bg);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    overflow: hidden;
+    overflow-x: hidden;
     overscroll-behavior-y: none;
 }
 
 /* ==========================================
-   APP SHELL — DESKTOP
+   APP SHELL — DESKTOP (side-by-side)
    ========================================== */
 #app-shell {
     display: flex;
     height: 100dvh;
-    width: 100vw;
-    position: fixed;
-    top: 0;
-    left: 0;
+    width: 100%;
     overflow: hidden;
 }
 
@@ -1076,34 +1074,38 @@ body {
 }
 
 /* ==========================================
-   MOBILE — STRICT STACKED LAYOUT
-   Prevents UI collapse on all mobile devices.
+   MOBILE — NATURAL-FLOW STACKED LAYOUT
+   The page scrolls naturally. Map on top,
+   dashboard below. No position:fixed locks.
    ========================================== */
 @media (max-width: 768px) {
+
+    /* --- Page & Shell --- */
     html, body {
-        height: 100dvh;
-        width: 100vw;
-        overflow: hidden !important;
-        position: fixed !important;
-        margin: 0;
-        padding: 0;
+        min-height: 100%;
+        height: auto;
+        overflow-x: hidden;
+        overflow-y: auto;
+        position: static;
     }
 
     #app-shell {
         display: flex;
         flex-direction: column;
-        height: 100dvh;
-        width: 100vw;
-        position: static;
-        overflow: hidden;
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
     }
 
+    /* --- Map Section --- */
     #map-container {
-        flex: 0 0 45dvh !important;
+        flex: none;
         width: 100%;
+        height: 45vh;
+        min-height: 300px;
+        max-height: 50vh;
         position: relative;
         z-index: 1;
-        height: 45dvh !important;
     }
 
     #map {
@@ -1118,23 +1120,22 @@ body {
         padding: 6px 12px;
     }
 
-    /* Dashboard panel — fills remaining space below the map */
+    /* --- Dashboard Panel --- */
     #pulse-panel {
-        flex: 1 !important;
+        flex: none;
         width: 100%;
-        overflow-y: auto;
+        height: auto;
+        min-height: 55vh;
+        overflow-y: visible;
+        overflow-x: hidden;
         background: var(--bg);
-        padding-bottom: 30px;
-        box-sizing: border-box;
-        z-index: 10;
-        margin: 0;
-        position: static !important;
-        transform: none !important;
         border-left: none;
         border-top: 1px solid var(--border);
+        position: static;
+        transform: none;
         border-radius: 0;
         box-shadow: none;
-        height: auto !important;
+        padding-bottom: 24px;
     }
 
     .sheet-handle {
@@ -1142,49 +1143,14 @@ body {
     }
 
     .panel-inner {
-        padding: 8px 20px 24px;
-        gap: 18px;
+        padding: 12px 16px 28px;
+        gap: 16px;
         min-height: auto;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
         height: auto;
+        overflow: visible;
     }
 
-    /* Control buttons grid */
-    .control-buttons {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-top: 15px;
-    }
-
-    .control-buttons button,
-    .control-buttons .btn {
-        width: 100%;
-        margin: 0;
-        padding: 12px;
-        font-weight: bold;
-    }
-
-    /* Scaled-down meter for mobile */
-    .savi-meter {
-        width: 120px;
-        height: 120px;
-    }
-
-    .meter-inner {
-        width: 100px;
-        height: 100px;
-    }
-
-    .meter-value {
-        font-size: 28px;
-    }
-
-    .meter-section {
-        padding: 16px 0 8px;
-    }
-
+    /* --- Brand / Header --- */
     .brand-block h1 {
         font-size: 17px;
     }
@@ -1200,17 +1166,54 @@ body {
         height: 22px;
     }
 
+    /* --- SAVI Meter --- */
+    .meter-section {
+        padding: 12px 0 8px;
+    }
+
+    .savi-meter {
+        width: 120px;
+        height: 120px;
+    }
+
+    .meter-inner {
+        width: 100px;
+        height: 100px;
+    }
+
+    .meter-value {
+        font-size: 28px;
+    }
+
+    /* --- AI Response --- */
     .ai-response {
         min-height: 60px;
         padding: 14px;
         font-size: 13px;
     }
 
+    /* --- Mode Toggle --- */
     .mode-switch-row {
         padding: 12px 14px;
     }
 
-    /* Touch targets — min 48px */
+    /* --- Control Buttons (Heatmap / Clear) --- */
+    .control-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .control-buttons button,
+    .control-buttons .btn {
+        width: 100%;
+        margin: 0;
+        padding: 12px;
+        font-weight: 600;
+    }
+
+    /* --- Analyze Button Row --- */
     .analyze-btn {
         min-height: 52px;
         font-size: 15px;
@@ -1222,36 +1225,44 @@ body {
         min-width: 52px;
     }
 
-    /* ---- Leaflet Draw Toolbar — Mobile Touch Overrides ---- */
+    /* --- Leaflet Draw Toolbar ---
+       CRITICAL: Do NOT override display or background on toolbar <a> tags.
+       Leaflet Draw uses background-image sprites on these elements.
+       Overriding display:flex or background removes the icons (white boxes). */
     .leaflet-touch .leaflet-bar,
     .leaflet-draw-toolbar {
         border: none !important;
         box-shadow: none !important;
         background: transparent !important;
-        margin-right: 14px !important;
-        margin-top: 10px !important;
+        margin-right: 10px !important;
+        margin-top: 8px !important;
     }
 
     .leaflet-touch .leaflet-bar a,
-    .leaflet-touch .leaflet-control-zoom a,
-    .leaflet-draw-toolbar a {
+    .leaflet-touch .leaflet-control-zoom a {
         min-width: 44px !important;
         min-height: 44px !important;
-        width: 46px !important;
-        height: 46px !important;
-        line-height: 46px !important;
-        margin: 8px !important;
+        width: 44px !important;
+        height: 44px !important;
+        line-height: 44px !important;
+        margin-bottom: 6px !important;
         border: none !important;
-        border-radius: 12px !important;
-        background: rgba(255, 255, 255, 0.92) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18) !important;
-        color: #374151;
-        transition: background 0.2s ease;
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
+        border-radius: 10px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    /* Draw toolbar buttons: keep background-image intact, only adjust size */
+    .leaflet-draw-toolbar a {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        line-height: 44px !important;
+        margin-bottom: 6px !important;
+        border: none !important;
+        border-radius: 10px !important;
+        background-color: rgba(255, 255, 255, 0.95) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
     }
 
     .leaflet-touch .leaflet-bar a:last-child,
@@ -1259,41 +1270,21 @@ body {
         border-bottom: none !important;
     }
 
-    .leaflet-touch .leaflet-bar a:active,
-    .leaflet-draw-toolbar a:active {
-        background: rgba(27, 67, 50, 0.1) !important;
-    }
-
-    /* Scale up the tiny sprite icons inside draw buttons */
-    .leaflet-draw-toolbar a .leaflet-draw-draw-polygon,
-    .leaflet-draw-toolbar a .leaflet-draw-edit-edit,
-    .leaflet-draw-toolbar a .leaflet-draw-edit-remove {
-        background-size: 320px 30px !important;
-    }
-
-    /* Context action buttons (Finish, Cancel, Delete) */
     .leaflet-draw-actions {
-        border-radius: 10px !important;
+        border-radius: 8px !important;
         overflow: hidden;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15) !important;
     }
 
     .leaflet-draw-actions a {
-        min-height: 44px;
-        min-width: 44px;
-        line-height: 44px;
-        margin: 8px !important;
-        padding: 0 18px;
-        font-size: 14px;
+        min-height: 40px;
+        line-height: 40px;
+        padding: 0 14px;
+        font-size: 13px;
         font-weight: 500;
-        display: block;
     }
 
-    /* Edit toolbar (separate from draw) */
-    .leaflet-draw-toolbar.leaflet-draw-toolbar-top {
-        margin-bottom: 8px !important;
-    }
-
+    /* --- Toasts --- */
     #toast-container {
         top: 12px;
         width: 90%;
@@ -1305,6 +1296,7 @@ body {
         padding: 12px 16px;
     }
 
+    /* --- Plot Manager --- */
     #plot-list {
         max-height: 160px;
     }
@@ -1333,19 +1325,7 @@ body {
 }
 
 @media (max-width: 420px) {
-    /* Prevent layout collision and enforce CSS grid on plotting buttons */
-    .leaflet-control-container .leaflet-top {
-        display: grid;
-        grid-template-columns: repeat(2, auto);
-        justify-content: end;
-        gap: 8px;
-    }
-
-    .leaflet-control-container .leaflet-right {
-        display: contents;
-    }
-
-    /* Enforce grid for Analyze btn row to avoid squishing */
+    /* Enforce grid for Analyze btn row to avoid squishing on very narrow screens */
     .btn-row {
         display: grid !important;
         grid-template-columns: minmax(0, 1fr) auto auto !important;
