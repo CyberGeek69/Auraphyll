@@ -1,0 +1,17 @@
+{
+  "name": "Auraphyll Intelligence",
+  "short_name": "Auraphyll",
+  "description": "Satellite Crop Stress Monitor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#2e7d32",
+  "icons": [
+    {
+      "src": "auraphyll-logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -81,6 +81,14 @@ async def serve_frontend():
 async def serve_logo():
     return FileResponse(os.path.join(FRONTEND_DIR, "auraphyll-logo.png"))
 
+@app.get("/manifest.json")
+async def serve_manifest():
+    return FileResponse(os.path.join(FRONTEND_DIR, "manifest.json"))
+
+@app.get("/service-worker.js")
+async def serve_service_worker():
+    return FileResponse(os.path.join(FRONTEND_DIR, "service-worker.js"), media_type="application/javascript")
+
 # Mount the rest of the frontend files
 app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_DIR, "static")), name="static")
 
