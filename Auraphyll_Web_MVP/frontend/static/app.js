@@ -360,10 +360,33 @@ function initMap() {
     });
 
     document.getElementById('clearMap').addEventListener('click', () => {
+        // Clear drawn polygons
         if (drawnItems) drawnItems.clearLayers();
-        if (saviLayer) map.removeLayer(saviLayer);
-        document.getElementById('meter-value').innerText = '--';
+        // Remove GEE heatmap overlay
+        if (saviLayer) {
+            map.removeLayer(saviLayer);
+            saviLayer = null;
+        }
+        // Reset meter and NDWI
+        document.getElementById('meter-value').innerText = '\u2014';
         document.getElementById('ndwi-value').innerText = '--';
+        var progressSvg = document.getElementById('meter-progress');
+        if (progressSvg) {
+            progressSvg.style.strokeDashoffset = 452.4;
+            progressSvg.style.stroke = 'var(--primary)';
+        }
+        var meter = document.getElementById('savi-meter');
+        if (meter) meter.className = 'savi-meter';
+        // Reset AI response to placeholder
+        var aiResp = document.getElementById('ai-response');
+        aiResp.innerHTML = '';
+        aiResp.classList.remove('active', 'error');
+        aiResp.innerHTML = '<div class="ai-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="currentColor" /></svg><span>Draw a field polygon on the map, then tap <strong>Analyze Field</strong> to receive AI-powered agronomic insight.</span></div>';
+        // Hide error message and chart
+        hideError();
+        var chartCont = document.getElementById('chart-container');
+        if (chartCont) chartCont.style.display = 'none';
+        // Reset state
         currentPolygon = null;
         updateSaveBtnState();
         updateAreaDisplay(null);
@@ -493,6 +516,22 @@ function updateAdvice(text, isError) {
     container.classList.add(isError ? "error" : "active");
 }
 
+function showError(message) {
+    var errorDiv = document.getElementById("error-message");
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = "block";
+    }
+}
+
+function hideError() {
+    var errorDiv = document.getElementById("error-message");
+    if (errorDiv) {
+        errorDiv.textContent = "";
+        errorDiv.style.display = "none";
+    }
+}
+
 function setLoading(active) {
     var btn = document.getElementById("analyze-btn");
     var textEl = btn.querySelector(".btn-text");
@@ -531,6 +570,7 @@ function handleAnalyze(optionalCoords) {
 
     var isDemoMode = document.getElementById("demo-toggle").checked;
     setLoading(true);
+    hideError();
 
     // Reset UI state from previous analysis
     updateNdwi(null);
@@ -626,11 +666,12 @@ function handleAnalyze(optionalCoords) {
             clearTimeout(timeoutId);
             var message = err.message || "Unknown error";
             if (err.name === "AbortError") {
-                message = "Analysis timed out after 60 seconds. The satellite server may be slow — please try again or switch to Demo Mode.";
+                message = "Analysis timed out after 60 seconds. The satellite server may be slow \u2014 please try again or switch to Demo Mode.";
             } else if (message === "Failed to fetch" || message.indexOf("NetworkError") !== -1) {
                 message = "Telemetry server unreachable. Please check your connection or switch to Demo Mode.";
             }
             updateAdvice(message, true);
+            showError(message);
             showToast("Analysis failed. See details below.", "error");
         })
         .finally(function () {

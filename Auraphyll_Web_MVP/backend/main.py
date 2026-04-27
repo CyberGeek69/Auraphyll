@@ -8,7 +8,7 @@ from google.oauth2 import service_account
 
 import ee
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
@@ -179,12 +179,11 @@ def compute_savi(coords_list):
     if ndwi_result is None:
         ndwi_result = 0.0
 
-    # Generate Heatmap URLs using SAVI
-    clipped_savi = savi.clip(polygon)
-    map_id_dict = clipped_savi.getMapId({
-        'min': -1, 'max': 1, 
-        'palette': ['red', 'orange', 'yellow', 'green', 'darkgreen']
-    })
+    # Generate Heatmap URLs using SAVI — clipped to ROI with strict vis_params
+    roi = polygon
+    clipped_savi = savi.clip(roi)
+    vis_params = {'min': -1.0, 'max': 1.0, 'palette': ['red', 'orange', 'yellow', 'green', 'darkgreen']}
+    map_id_dict = clipped_savi.getMapId(vis_params)
     heatmap_url = map_id_dict['tile_fetcher'].url_format if 'tile_fetcher' in map_id_dict else ""
 
     return result, ndwi_result, heatmap_url, buffered_polygon
@@ -334,15 +333,31 @@ def generate_advice(mean_savi_score):
 # ==========================================
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 def analyze(payload: AnalyzeRequest):
+    # Input Validation: Ensure coordinates are not empty
+    if not payload.coordinates or len(payload.coordinates) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid input: A polygon requires at least 3 coordinate vertices."
+        )
+
     coords_list = [[c.lng, c.lat] for c in payload.coordinates]
 
     # Step A: Get Satellite Data
     try:
         raw_score, ndwi_score, heatmap_url, _ = compute_savi(coords_list)
         savi_history = compute_savi_history(coords_list)
+    except ee.EEException as e:
+        print(f"[ERROR] Earth Engine API Error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Satellite data processing failed. The Earth Engine service may be temporarily unavailable. Please try a smaller field or try again later."
+        )
     except Exception as e:
-        print(f"[WARN] Earth Engine Error: {e}")
-        return CLOUD_FALLBACK
+        print(f"[ERROR] Earth Engine Error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Satellite data processing timed out. Please try a smaller field."
+        )
 
     if raw_score is None:
         print("[WARN] Earth Engine returned no valid images (likely too cloudy).")
@@ -357,11 +372,18 @@ def analyze(payload: AnalyzeRequest):
         advice_text = generate_advice(mean_savi_score)
         print("[OK] Gemini AI Advice Generated")
     except Exception as e:
-        print(f"[WARN] Gemini API Error: {repr(e)}")
-        advice_text = (
-            f"SAVI score is {mean_savi_score}. AI advisory is temporarily unavailable. "
-            f"Please consult local agronomic guidelines."
-        )
+        error_msg = repr(e)
+        print(f"[WARN] Gemini API Error: {error_msg}")
+        if "429" in error_msg:
+            advice_text = (
+                f"SAVI score is {mean_savi_score}. AI advisory hit rate limit (429). "
+                f"Please wait a moment and try again, or consult local agronomic guidelines."
+            )
+        else:
+            advice_text = (
+                f"SAVI score is {mean_savi_score}. AI advisory is temporarily unavailable. "
+                f"Please consult local agronomic guidelines."
+            )
 
     # Step C: Send everything back to the Leaflet Frontend
     return AnalyzeResponse(

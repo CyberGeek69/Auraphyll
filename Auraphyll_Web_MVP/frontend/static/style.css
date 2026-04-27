@@ -1076,23 +1076,39 @@ body {
 }
 
 /* ==========================================
-   MOBILE — BOTTOM SHEET
+   MOBILE — STRICT STACKED LAYOUT
+   Prevents UI collapse on all mobile devices.
    ========================================== */
 @media (max-width: 768px) {
+    html, body {
+        height: 100dvh;
+        width: 100vw;
+        overflow: hidden !important;
+        position: fixed !important;
+        margin: 0;
+        padding: 0;
+    }
+
     #app-shell {
+        display: flex;
         flex-direction: column;
-        position: relative;
+        height: 100dvh;
+        width: 100vw;
+        position: static;
         overflow: hidden;
     }
 
     #map-container {
-        flex: none;
-        position: absolute;
-        inset: 0;
-        height: 100%;
-        height: 100dvh;
+        flex: 0 0 45dvh !important;
         width: 100%;
+        position: relative;
         z-index: 1;
+        height: 45dvh !important;
+    }
+
+    #map {
+        width: 100%;
+        height: 100%;
     }
 
     #map-overlay-badge {
@@ -1102,66 +1118,27 @@ body {
         padding: 6px 12px;
     }
 
-    /* ---- Bottom Sheet ---- */
+    /* Dashboard panel — fills remaining space below the map */
     #pulse-panel {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: var(--sheet-full);
-        z-index: 500;
-        border-left: none;
-        border-top: none;
-        border-radius: 20px 20px 0 0;
+        flex: 1 !important;
+        width: 100%;
+        overflow-y: auto;
         background: var(--bg);
-        box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.15);
-        transform: translateY(calc(var(--sheet-full) - var(--sheet-peek)));
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        overflow: hidden;
-        will-change: transform;
-        flex: none;
-    }
-
-    #pulse-panel.sheet-half {
-        transform: translateY(calc(var(--sheet-full) - var(--sheet-half)));
-    }
-
-    #pulse-panel.sheet-full {
-        transform: translateY(0);
-    }
-
-    #pulse-panel.sheet-dragging {
-        transition: none;
+        padding-bottom: 30px;
+        box-sizing: border-box;
+        z-index: 10;
+        margin: 0;
+        position: static !important;
+        transform: none !important;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        border-radius: 0;
+        box-shadow: none;
+        height: auto !important;
     }
 
     .sheet-handle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 12px 0 4px;
-        cursor: grab;
-        touch-action: none;
-    }
-
-    .sheet-handle-pill {
-        width: 40px;
-        height: 5px;
-        border-radius: 100px;
-        background: #D1D5DB;
-        transition: background var(--transition), width var(--transition);
-    }
-
-    .sheet-handle:active .sheet-handle-pill {
-        width: 52px;
-        background: #9CA3AF;
-    }
-
-    /* -- Panel header becomes draggable touch zone on mobile -- */
-    .panel-header {
-        cursor: grab;
-        touch-action: none;
-        -webkit-user-select: none;
-        user-select: none;
+        display: none !important;
     }
 
     .panel-inner {
@@ -1169,10 +1146,27 @@ body {
         gap: 18px;
         min-height: auto;
         overflow-y: auto;
-        height: calc(var(--sheet-full) - 24px);
         -webkit-overflow-scrolling: touch;
+        height: auto;
     }
 
+    /* Control buttons grid */
+    .control-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .control-buttons button,
+    .control-buttons .btn {
+        width: 100%;
+        margin: 0;
+        padding: 12px;
+        font-weight: bold;
+    }
+
+    /* Scaled-down meter for mobile */
     .savi-meter {
         width: 120px;
         height: 120px;
@@ -1236,7 +1230,6 @@ body {
         background: transparent !important;
         margin-right: 14px !important;
         margin-top: 10px !important;
-        /* we override background on buttons themselves now */
     }
 
     .leaflet-touch .leaflet-bar a,
@@ -1347,9 +1340,9 @@ body {
         justify-content: end;
         gap: 8px;
     }
-    
+
     .leaflet-control-container .leaflet-right {
-        display: contents; /* Allows children to participate in the top grid */
+        display: contents;
     }
 
     /* Enforce grid for Analyze btn row to avoid squishing */
@@ -1360,43 +1353,21 @@ body {
     }
 }
 
-@media (max-width: 768px) {
-    html, body {
-        overflow: hidden !important;
-        position: fixed !important;
-        margin: 0;
-        padding: 0;
-        height: 100vh !important;
-    }
-    #app-shell {
-        flex-direction: column;
-        height: 100vh;
-        position: static;
-    }
-    #map-container {
-        width: 100%;
-        height: 45vh !important;
-        flex: none;
-    }
-    #map {
-        width: 100%;
-        height: 100%;
-    }
-    #pulse-panel {
-        width: 100%;
-        height: 55vh !important;
-        flex: none;
-        margin-top: 0 !important;
-        overflow-y: auto;
-        padding-bottom: 30px;
-        position: static !important;
-        transform: none !important;
-        border-left: none;
-        border-top: 1px solid var(--border);
-    }
-    .sheet-handle {
-        display: none !important;
-    }
+/* ==========================================
+   ERROR MESSAGE DISPLAY
+   ========================================== */
+.error-message {
+    display: none;
+    padding: 12px 16px;
+    margin-top: 10px;
+    background: rgba(211, 47, 47, 0.08);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-sm);
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.5;
+    animation: fade-up 0.3s ease-out both;
 }
 
 .control-buttons {
