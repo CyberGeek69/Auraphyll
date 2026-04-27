@@ -1361,18 +1361,35 @@ body {
 }
 
 @media (max-width: 768px) {
+    html, body {
+        overflow-y: auto !important;
+        position: static !important;
+        height: auto !important;
+    }
     #app-shell {
         flex-direction: column;
         height: auto;
+        position: static;
     }
-    #map-container, #map {
+    #map-container {
         width: 100%;
-        height: 400px;
+        height: 50vh;
         flex: none;
+    }
+    #map {
+        width: 100%;
+        height: 100%;
     }
     #pulse-panel {
         width: 100%;
         padding: 20px;
         flex: none;
+        overflow: visible;
+        transform: none !important;
+        border-left: none;
+        border-top: 1px solid var(--border);
+    }
+    .sheet-handle {
+        display: none !important;
     }
 }

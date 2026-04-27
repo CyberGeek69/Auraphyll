@@ -381,8 +381,14 @@ function initMap() {
         pm.classList.toggle("collapsed");
     });
 
-    // Initialize bottom sheet (mobile only)
-    BottomSheet.init();
+    // Initialize bottom sheet (mobile only) - disabled for stacked mobile layout
+    // BottomSheet.init();
+    window.addEventListener('resize', function() {
+        if (map) map.invalidateSize();
+    });
+    setTimeout(function() {
+        if (map) map.invalidateSize();
+    }, 500);
 
     // Initialize plot manager — load saved plots
     PlotManager.init();
