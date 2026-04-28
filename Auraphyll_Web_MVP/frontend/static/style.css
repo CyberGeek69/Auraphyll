@@ -1158,9 +1158,12 @@ body {
 
 /* ==========================================
    GRID TOOLTIP — Hover/Click Info Overlay
+   Hidden by default via display:none.
+   Shown by JS setting display:block.
    ========================================== */
 .grid-tooltip {
-    position: fixed;
+    display: none;
+    position: absolute;
     bottom: 24px;
     left: 24px;
     z-index: 1000;
@@ -1172,20 +1175,14 @@ body {
     padding: 16px 18px;
     color: #fff;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    transition: opacity 0.3s ease, transform 0.3s ease;
     pointer-events: none;
     border: 1px solid rgba(255, 255, 255, 0.08);
+    animation: tooltip-fade-in 0.25s ease-out;
 }
 
-.grid-tooltip.hidden {
-    opacity: 0;
-    transform: translateY(10px);
-    pointer-events: none;
-}
-
-.grid-tooltip:not(.hidden) {
-    opacity: 1;
-    transform: translateY(0);
+@keyframes tooltip-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .grid-tooltip-header {

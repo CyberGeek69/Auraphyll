@@ -26,34 +26,34 @@
 
 <body>
     <div id="toast-container"></div>
-    <div id="grid-tooltip" class="grid-tooltip hidden">
-        <div class="grid-tooltip-header">
-            <span class="grid-tooltip-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" fill="currentColor"/></svg>
-            </span>
-            <span id="grid-tooltip-title">Grid Cell</span>
-        </div>
-        <div class="grid-tooltip-body">
-            <div class="grid-tooltip-row">
-                <span class="grid-tooltip-label">SAVI Score</span>
-                <span class="grid-tooltip-value" id="grid-tooltip-savi">—</span>
-            </div>
-            <div class="grid-tooltip-row">
-                <span class="grid-tooltip-label">NDWI Score</span>
-                <span class="grid-tooltip-value" id="grid-tooltip-ndwi">—</span>
-            </div>
-            <div class="grid-tooltip-row">
-                <span class="grid-tooltip-label">Status</span>
-                <span class="grid-tooltip-value" id="grid-tooltip-status">—</span>
-            </div>
-        </div>
-    </div>
     <div id="app-shell">
         <div id="map-container">
             <div id="map"></div>
             <div id="map-overlay-badge">
                 <span class="badge-dot"></span>
                 <span>Sentinel-2 Live</span>
+            </div>
+            <div id="grid-tooltip" class="grid-tooltip">
+                <div class="grid-tooltip-header">
+                    <span class="grid-tooltip-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" fill="currentColor"/></svg>
+                    </span>
+                    <span id="grid-tooltip-title">Grid Cell</span>
+                </div>
+                <div class="grid-tooltip-body">
+                    <div class="grid-tooltip-row">
+                        <span class="grid-tooltip-label">SAVI Score</span>
+                        <span class="grid-tooltip-value" id="grid-tooltip-savi">—</span>
+                    </div>
+                    <div class="grid-tooltip-row">
+                        <span class="grid-tooltip-label">NDWI Score</span>
+                        <span class="grid-tooltip-value" id="grid-tooltip-ndwi">—</span>
+                    </div>
+                    <div class="grid-tooltip-row">
+                        <span class="grid-tooltip-label">Status</span>
+                        <span class="grid-tooltip-value" id="grid-tooltip-status">—</span>
+                    </div>
+                </div>
             </div>
         </div>
         <div id="pulse-panel">

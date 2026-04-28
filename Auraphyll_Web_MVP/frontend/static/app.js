@@ -575,39 +575,83 @@ function metersPerDegree(lat) {
 }
 
 /**
- * Get SAVI fill color using expanded 6-stop agronomic scale.
- * >= 0.6:        #006400 (Deep Dark Green — Optimal)
- * 0.4 to 0.59:   #32CD32 (Lime Green — Healthy)
- * 0.2 to 0.39:   #ADFF2F (Yellow-Green — Mild Stress)
- * 0.0 to 0.19:   #FFD700 (Yellow — Moderate Stress)
- * -0.2 to -0.01: #FF8C00 (Dark Orange — Severe Stress)
- * < -0.2:        #8B0000 (Deep Red — Critical/Dead)
+ * Linearly interpolate between two RGB colors.
+ * c1, c2 are [r, g, b] arrays, t is 0..1
  */
-function getSaviFillColor(score) {
-    if (score >= 0.6)  return '#006400';  // Deep Dark Green — Optimal
-    if (score >= 0.4)  return '#32CD32';  // Lime Green — Healthy
-    if (score >= 0.2)  return '#ADFF2F';  // Yellow-Green — Mild Stress
-    if (score >= 0.0)  return '#FFD700';  // Yellow — Moderate Stress
-    if (score >= -0.2) return '#FF8C00';  // Dark Orange — Severe Stress
-    return '#8B0000';                      // Deep Red — Critical/Dead
+function lerpColor(c1, c2, t) {
+    return [
+        Math.round(c1[0] + (c2[0] - c1[0]) * t),
+        Math.round(c1[1] + (c2[1] - c1[1]) * t),
+        Math.round(c1[2] + (c2[2] - c1[2]) * t)
+    ];
 }
 
 /**
- * Get NDWI fill color using expanded 6-stop agronomic scale.
- * >= 0.3:         #00008B (Deep Blue — Saturated)
- * 0.1 to 0.29:    #1E90FF (Dodger Blue — Good Moisture)
- * -0.1 to 0.09:   #00FFFF (Cyan — Borderline)
- * -0.3 to -0.11:  #FFD700 (Yellow — Mild Drying)
- * -0.5 to -0.31:  #FF4500 (Orange-Red — Drought Stress)
- * < -0.5:         #800000 (Maroon — Extreme Water Deficit)
+ * Interpolate through a multi-stop color ramp.
+ * stops: array of { value, color: [r,g,b] } sorted ascending by value.
+ * Returns an 'rgb(r,g,b)' string for continuous color variation.
  */
+function interpolateColorRamp(score, stops) {
+    // Clamp below minimum
+    if (score <= stops[0].value) {
+        var c = stops[0].color;
+        return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    }
+    // Clamp above maximum
+    if (score >= stops[stops.length - 1].value) {
+        var c = stops[stops.length - 1].color;
+        return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+    }
+    // Find the two stops to interpolate between
+    for (var i = 0; i < stops.length - 1; i++) {
+        if (score >= stops[i].value && score < stops[i + 1].value) {
+            var range = stops[i + 1].value - stops[i].value;
+            var t = (score - stops[i].value) / range;
+            var rgb = lerpColor(stops[i].color, stops[i + 1].color, t);
+            return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
+        }
+    }
+    // Fallback
+    var c = stops[stops.length - 1].color;
+    return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+}
+
+/**
+ * SAVI color ramp — continuous Green-to-Red spectrum.
+ * Deep Green (Optimal) → Lime → Yellow-Green → Yellow → Orange → Red → Deep Red (Critical)
+ */
+var SAVI_RAMP = [
+    { value: -0.5,  color: [139,   0,   0] },   // #8B0000 Deep Red
+    { value: -0.2,  color: [255, 140,   0] },   // #FF8C00 Dark Orange
+    { value:  0.0,  color: [255, 215,   0] },   // #FFD700 Yellow
+    { value:  0.2,  color: [173, 255,  47] },   // #ADFF2F Yellow-Green
+    { value:  0.4,  color: [ 50, 205,  50] },   // #32CD32 Lime Green
+    { value:  0.6,  color: [  0, 128,   0] },   // #008000 Green
+    { value:  0.8,  color: [  0, 100,   0] },   // #006400 Deep Dark Green
+    { value:  1.0,  color: [  0,  70,   0] }    // Deepest Green
+];
+
+function getSaviFillColor(score) {
+    return interpolateColorRamp(score, SAVI_RAMP);
+}
+
+/**
+ * NDWI color ramp — continuous Blue-to-Red spectrum.
+ * Deep Blue (Saturated) → Dodger Blue → Cyan → Yellow → Orange-Red → Maroon (Deficit)
+ */
+var NDWI_RAMP = [
+    { value: -1.0,  color: [128,   0,   0] },   // #800000 Maroon
+    { value: -0.5,  color: [255,  69,   0] },   // #FF4500 Orange-Red
+    { value: -0.3,  color: [255, 215,   0] },   // #FFD700 Yellow
+    { value: -0.1,  color: [  0, 255, 255] },   // #00FFFF Cyan
+    { value:  0.1,  color: [ 30, 144, 255] },   // #1E90FF Dodger Blue
+    { value:  0.3,  color: [  0,   0, 180] },   // Deep Blue
+    { value:  0.5,  color: [  0,   0, 139] },   // #00008B Darkest Blue
+    { value:  1.0,  color: [  0,   0, 100] }    // Navy
+];
+
 function getNdwiFillColor(score) {
-    if (score >= 0.3)  return '#00008B';  // Deep Blue — Saturated
-    if (score >= 0.1)  return '#1E90FF';  // Dodger Blue — Good Moisture
-    if (score >= -0.1) return '#00FFFF';  // Cyan — Borderline
-    if (score >= -0.3) return '#FFD700';  // Yellow — Mild Drying
-    if (score >= -0.5) return '#FF4500';  // Orange-Red — Drought Stress
-    return '#800000';                      // Maroon — Extreme Water Deficit
+    return interpolateColorRamp(score, NDWI_RAMP);
 }
 
 /**
@@ -735,7 +779,7 @@ function renderGridLayer() {
             weight: 1,
             color: 'rgba(255,255,255,0.3)',
             fillColor: fillColor,
-            fillOpacity: 0.72,
+            fillOpacity: 0.6,
             interactive: true,
             className: 'grid-cell'
         });
@@ -749,7 +793,7 @@ function renderGridLayer() {
             e.target.setStyle({
                 weight: 2,
                 color: '#FFFFFF',
-                fillOpacity: 0.9
+                fillOpacity: 0.75
             });
             showGridTooltip(gc);
         });
@@ -758,7 +802,7 @@ function renderGridLayer() {
             e.target.setStyle({
                 weight: 1,
                 color: 'rgba(255,255,255,0.3)',
-                fillOpacity: 0.72
+                fillOpacity: 0.6
             });
             hideGridTooltip();
         });
@@ -813,7 +857,8 @@ function showGridTooltip(cell) {
         saviEl.style.color = '#fff';
     }
 
-    tooltip.classList.remove('hidden');
+    // Show via display (NOT classList)
+    tooltip.style.display = 'block';
 }
 
 /**
@@ -821,7 +866,7 @@ function showGridTooltip(cell) {
  */
 function hideGridTooltip() {
     var tooltip = document.getElementById('grid-tooltip');
-    tooltip.classList.add('hidden');
+    tooltip.style.display = 'none';
 }
 
 /**
