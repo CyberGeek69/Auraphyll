@@ -389,21 +389,32 @@ function initMap() {
         // Sync checkbox state (unchecked = SAVI, checked = NDWI)
         layerToggleCheckbox.checked = (layer === 'ndwi');
 
-        // Re-render grid with new color scale — NO new API call
-        if (storedGridData && storedGridData.cells.length > 0) {
-            renderGridLayer();
+        // Re-color existing grid cells in-place — NO layer rebuild, NO API call
+        if (gridLayerGroup && storedGridData && storedGridData.cells.length > 0) {
+            recolorGridLayer();
         }
 
-        showToast('Switched to ' + (layer === 'savi' ? 'SAVI (Vegetation Health)' : 'NDWI (Water Stress)') + ' layer.', 'info', 2000);
+        showToast('Switched to ' + (layer === 'savi' ? 'SAVI (Health)' : 'NDWI (Moisture)') + ' layer.', 'info', 2000);
     }
 
-    layerToggleCheckbox.addEventListener('change', function () {
+    // Direct event listeners — stopPropagation prevents Leaflet from swallowing the event
+    layerToggleCheckbox.addEventListener('click', function (e) {
+        e.stopPropagation();
+    });
+    layerToggleCheckbox.addEventListener('change', function (e) {
+        e.stopPropagation();
         setActiveLayer(this.checked ? 'ndwi' : 'savi');
     });
 
     // Also allow clicking the labels to toggle
-    labelSavi.addEventListener('click', function () { setActiveLayer('savi'); });
-    labelNdwi.addEventListener('click', function () { setActiveLayer('ndwi'); });
+    labelSavi.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setActiveLayer('savi');
+    });
+    labelNdwi.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setActiveLayer('ndwi');
+    });
 
     document.getElementById('clearMap').addEventListener('click', function () {
         // Clear drawn polygons
@@ -820,6 +831,28 @@ function renderGridLayer() {
     }
 
     // Update legend bar
+    updateGridLegend();
+}
+
+/**
+ * Re-color existing grid layers in-place using setStyle().
+ * This is called by the SAVI/NDWI toggle — it does NOT destroy or
+ * rebuild layers, making it instant and flicker-free.
+ */
+function recolorGridLayer() {
+    if (!gridLayerGroup) return;
+
+    var getColor = activeLayer === 'ndwi' ? getNdwiFillColor : getSaviFillColor;
+    var scoreKey = activeLayer === 'ndwi' ? 'ndwi' : 'savi';
+
+    gridLayerGroup.eachLayer(function (layer) {
+        if (layer._gridCell) {
+            var score = layer._gridCell[scoreKey];
+            layer.setStyle({ fillColor: getColor(score) });
+        }
+    });
+
+    // Update legend bar to match new index
     updateGridLegend();
 }
 
