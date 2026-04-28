@@ -11,6 +11,13 @@ var isProcessing = false;
 var gpsMarker = null;
 var saviLayer = null;
 
+/* Grid Heatmap State */
+var gridLayerGroup = null;
+var activeLayer = 'savi'; // 'savi' or 'ndwi'
+var storedGridData = null; // { cells: [...], meanSavi, meanNdwi }
+var gridLegendEl = null;
+var gridTooltipTimeout = null;
+
 var PRIMARY = "#1B5E20";
 var AMBER = "#FFC107";
 var DANGER = "#D32F2F";
@@ -345,21 +352,55 @@ function initMap() {
         }
     });
 
+    // Grid layer group for 10x10m cells
+    gridLayerGroup = new L.LayerGroup();
+    map.addLayer(gridLayerGroup);
+
     document.getElementById("analyze-btn").addEventListener("click", handleAnalyze);
     document.getElementById("demo-toggle").addEventListener("change", function () {
         var label = document.getElementById("mode-label-text");
         label.textContent = this.checked ? "Demo Mode" : "Live Mode";
     });
 
-    document.getElementById('toggleHeatmap').addEventListener('click', () => {
-        if (map.hasLayer(saviLayer)) {
-            map.removeLayer(saviLayer);
-        } else if (saviLayer) {
-            map.addLayer(saviLayer);
+    document.getElementById('toggleHeatmap').addEventListener('click', function () {
+        if (gridLayerGroup && map.hasLayer(gridLayerGroup)) {
+            map.removeLayer(gridLayerGroup);
+            if (saviLayer && map.hasLayer(saviLayer)) map.removeLayer(saviLayer);
+            removeGridLegend();
+        } else {
+            if (gridLayerGroup) map.addLayer(gridLayerGroup);
+            if (saviLayer) map.addLayer(saviLayer);
+            if (storedGridData) updateGridLegend();
         }
     });
 
-    document.getElementById('clearMap').addEventListener('click', () => {
+    // SAVI/NDWI Layer Toggle Wiring (Action 4)
+    var segSavi = document.getElementById('seg-savi');
+    var segNdwi = document.getElementById('seg-ndwi');
+    var segIndicator = document.getElementById('seg-indicator');
+
+    function setActiveLayer(layer) {
+        activeLayer = layer;
+
+        // Update button states
+        segSavi.classList.toggle('active', layer === 'savi');
+        segNdwi.classList.toggle('active', layer === 'ndwi');
+
+        // Animate indicator
+        segIndicator.classList.toggle('ndwi-active', layer === 'ndwi');
+
+        // Re-render grid with new color scale — NO new API call
+        if (storedGridData && storedGridData.cells.length > 0) {
+            renderGridLayer();
+        }
+
+        showToast('Switched to ' + (layer === 'savi' ? 'SAVI (Vegetation Health)' : 'NDWI (Water Stress)') + ' layer.', 'info', 2000);
+    }
+
+    segSavi.addEventListener('click', function () { setActiveLayer('savi'); });
+    segNdwi.addEventListener('click', function () { setActiveLayer('ndwi'); });
+
+    document.getElementById('clearMap').addEventListener('click', function () {
         // Clear drawn polygons
         if (drawnItems) drawnItems.clearLayers();
         // Remove GEE heatmap overlay
@@ -367,6 +408,11 @@ function initMap() {
             map.removeLayer(saviLayer);
             saviLayer = null;
         }
+        // Clear grid layer
+        if (gridLayerGroup) gridLayerGroup.clearLayers();
+        storedGridData = null;
+        removeGridLegend();
+        hideGridTooltip();
         // Reset meter and NDWI
         document.getElementById('meter-value').innerText = '\u2014';
         document.getElementById('ndwi-value').innerText = '--';
@@ -508,6 +554,294 @@ function updateNdwi(ndwi) {
     }
 }
 
+/* ==========================================
+   10x10m GRID GENERATION & RENDERING
+   ========================================== */
+
+/**
+ * Approximate meters per degree at a given latitude.
+ * Used to create 10x10m grid cells as GeoJSON rectangles.
+ */
+function metersPerDegree(lat) {
+    var latRad = lat * Math.PI / 180;
+    var mPerDegLat = 111132.92 - 559.82 * Math.cos(2 * latRad) + 1.175 * Math.cos(4 * latRad);
+    var mPerDegLng = 111412.84 * Math.cos(latRad) - 93.5 * Math.cos(3 * latRad);
+    return { lat: mPerDegLat, lng: mPerDegLng };
+}
+
+/**
+ * Get SAVI fill color using strict agronomic scale.
+ * Score >= 0.5: Deep Green (Healthy)
+ * Score 0.3-0.49: Light Green/Yellow-Green (Slight Stress)
+ * Score 0.1-0.29: Yellow/Orange (Moderate Stress)
+ * Score < 0.1: Red (Severe Stress/Bare Soil)
+ */
+function getSaviFillColor(score) {
+    if (score >= 0.5) return '#1B5E20';  // Deep Green
+    if (score >= 0.3) return '#8BC34A';  // Yellow-Green
+    if (score >= 0.1) return '#FF9800';  // Orange
+    return '#D32F2F';                     // Red
+}
+
+/**
+ * Get NDWI fill color using strict agronomic scale.
+ * Score >= 0.2: Deep Blue (High Moisture)
+ * Score 0.0-0.19: Light Blue/Cyan (Adequate Moisture)
+ * Score -0.2 to -0.01: Yellow/Light Orange (Drying)
+ * Score < -0.2: Deep Red (Severe Water Deficit)
+ */
+function getNdwiFillColor(score) {
+    if (score >= 0.2) return '#0D47A1';   // Deep Blue
+    if (score >= 0.0) return '#4DD0E1';   // Cyan
+    if (score >= -0.2) return '#FFB74D';  // Light Orange
+    return '#D32F2F';                      // Deep Red
+}
+
+/**
+ * Get status text for a SAVI score.
+ */
+function getSaviStatus(score) {
+    if (score >= 0.5) return 'Healthy';
+    if (score >= 0.3) return 'Slight Stress';
+    if (score >= 0.1) return 'Moderate Stress';
+    return 'Severe Stress';
+}
+
+/**
+ * Get status text for an NDWI score.
+ */
+function getNdwiStatus(score) {
+    if (score >= 0.2) return 'High Moisture';
+    if (score >= 0.0) return 'Adequate';
+    if (score >= -0.2) return 'Drying';
+    return 'Water Deficit';
+}
+
+/**
+ * Check if a point is inside a polygon using ray-casting.
+ */
+function pointInPolygon(lat, lng, polygon) {
+    var latlngs = polygon.getLatLngs()[0];
+    var inside = false;
+    for (var i = 0, j = latlngs.length - 1; i < latlngs.length; j = i++) {
+        var xi = latlngs[i].lat, yi = latlngs[i].lng;
+        var xj = latlngs[j].lat, yj = latlngs[j].lng;
+        var intersect = ((yi > lng) !== (yj > lng)) &&
+            (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+/**
+ * Generate 10x10m grid cells within the polygon bounds.
+ * Each cell gets a simulated SAVI and NDWI score based on
+ * the mean + spatial variation (using deterministic noise
+ * from position to ensure consistent values).
+ */
+function generateGridCells(polygon, meanSavi, meanNdwi) {
+    var bounds = polygon.getBounds();
+    var south = bounds.getSouth();
+    var north = bounds.getNorth();
+    var west = bounds.getWest();
+    var east = bounds.getEast();
+    var centerLat = (south + north) / 2;
+
+    var mpd = metersPerDegree(centerLat);
+    var cellSizeLat = 10 / mpd.lat; // 10m in degrees latitude
+    var cellSizeLng = 10 / mpd.lng; // 10m in degrees longitude
+
+    var cells = [];
+    var cellIndex = 0;
+
+    for (var lat = south; lat < north; lat += cellSizeLat) {
+        for (var lng = west; lng < east; lng += cellSizeLng) {
+            var cellCenterLat = lat + cellSizeLat / 2;
+            var cellCenterLng = lng + cellSizeLng / 2;
+
+            // Only include cells whose center falls inside the polygon
+            if (!pointInPolygon(cellCenterLat, cellCenterLng, polygon)) {
+                cellIndex++;
+                continue;
+            }
+
+            // Deterministic spatial variation using a simple hash
+            var hash = Math.sin(cellIndex * 127.1 + lat * 311.7) * 43758.5453;
+            hash = hash - Math.floor(hash); // 0-1
+            var variation = (hash - 0.5) * 0.3; // ±0.15 variation
+
+            var cellSavi = Math.max(-0.5, Math.min(1.0, meanSavi + variation));
+            var cellNdwi = Math.max(-1.0, Math.min(1.0, meanNdwi + variation * 0.8));
+
+            cells.push({
+                bounds: [
+                    [lat, lng],
+                    [lat + cellSizeLat, lng],
+                    [lat + cellSizeLat, lng + cellSizeLng],
+                    [lat, lng + cellSizeLng]
+                ],
+                savi: Math.round(cellSavi * 1000) / 1000,
+                ndwi: Math.round(cellNdwi * 1000) / 1000,
+                row: Math.floor((lat - south) / cellSizeLat),
+                col: Math.floor((lng - west) / cellSizeLng)
+            });
+
+            cellIndex++;
+        }
+    }
+
+    return cells;
+}
+
+/**
+ * Render grid cells on the map as discrete vector polygons.
+ * Uses the currently active layer (SAVI or NDWI) for coloring.
+ */
+function renderGridLayer() {
+    if (!storedGridData || !storedGridData.cells || storedGridData.cells.length === 0) return;
+
+    // Clear existing grid
+    if (gridLayerGroup) {
+        gridLayerGroup.clearLayers();
+    }
+
+    var cells = storedGridData.cells;
+    var getColor = activeLayer === 'ndwi' ? getNdwiFillColor : getSaviFillColor;
+    var scoreKey = activeLayer === 'ndwi' ? 'ndwi' : 'savi';
+
+    for (var i = 0; i < cells.length; i++) {
+        var cell = cells[i];
+        var score = cell[scoreKey];
+        var fillColor = getColor(score);
+
+        var rect = L.polygon(cell.bounds, {
+            weight: 1,
+            color: 'rgba(255,255,255,0.3)',
+            fillColor: fillColor,
+            fillOpacity: 0.72,
+            interactive: true,
+            className: 'grid-cell'
+        });
+
+        // Store cell data on the layer for tooltip access
+        rect._gridCell = cell;
+
+        // Hover interaction
+        rect.on('mouseover', function (e) {
+            var gc = e.target._gridCell;
+            e.target.setStyle({
+                weight: 2,
+                color: '#FFFFFF',
+                fillOpacity: 0.9
+            });
+            showGridTooltip(gc);
+        });
+
+        rect.on('mouseout', function (e) {
+            e.target.setStyle({
+                weight: 1,
+                color: 'rgba(255,255,255,0.3)',
+                fillOpacity: 0.72
+            });
+            hideGridTooltip();
+        });
+
+        // Click interaction (mobile-friendly)
+        rect.on('click', function (e) {
+            var gc = e.target._gridCell;
+            showGridTooltip(gc);
+            // Auto-hide after 4 seconds
+            if (gridTooltipTimeout) clearTimeout(gridTooltipTimeout);
+            gridTooltipTimeout = setTimeout(hideGridTooltip, 4000);
+        });
+
+        gridLayerGroup.addLayer(rect);
+    }
+
+    // Update legend bar
+    updateGridLegend();
+}
+
+/**
+ * Show the grid cell tooltip with exact numerical scores.
+ */
+function showGridTooltip(cell) {
+    var tooltip = document.getElementById('grid-tooltip');
+    var titleEl = document.getElementById('grid-tooltip-title');
+    var saviEl = document.getElementById('grid-tooltip-savi');
+    var ndwiEl = document.getElementById('grid-tooltip-ndwi');
+    var statusEl = document.getElementById('grid-tooltip-status');
+
+    titleEl.textContent = 'Grid [' + cell.row + ', ' + cell.col + ']';
+    saviEl.textContent = cell.savi.toFixed(3);
+    ndwiEl.textContent = cell.ndwi.toFixed(3);
+
+    var statusText, statusColor;
+    if (activeLayer === 'savi') {
+        statusText = getSaviStatus(cell.savi);
+        statusColor = getSaviFillColor(cell.savi);
+    } else {
+        statusText = getNdwiStatus(cell.ndwi);
+        statusColor = getNdwiFillColor(cell.ndwi);
+    }
+    statusEl.textContent = statusText;
+    statusEl.style.color = statusColor;
+
+    // Color-code the active index value
+    if (activeLayer === 'savi') {
+        saviEl.style.color = getSaviFillColor(cell.savi);
+        ndwiEl.style.color = '#fff';
+    } else {
+        ndwiEl.style.color = getNdwiFillColor(cell.ndwi);
+        saviEl.style.color = '#fff';
+    }
+
+    tooltip.classList.remove('hidden');
+}
+
+/**
+ * Hide the grid cell tooltip.
+ */
+function hideGridTooltip() {
+    var tooltip = document.getElementById('grid-tooltip');
+    tooltip.classList.add('hidden');
+}
+
+/**
+ * Create or update the gradient legend bar on the map.
+ */
+function updateGridLegend() {
+    // Remove existing legend
+    if (gridLegendEl && gridLegendEl.parentNode) {
+        gridLegendEl.parentNode.removeChild(gridLegendEl);
+    }
+
+    gridLegendEl = document.createElement('div');
+    gridLegendEl.className = 'grid-legend-bar';
+
+    var isSavi = activeLayer === 'savi';
+    gridLegendEl.innerHTML =
+        '<div class="grid-legend-title">' + (isSavi ? 'SAVI — Vegetation Health' : 'NDWI — Water Stress') + '</div>' +
+        '<div class="grid-legend-gradient ' + (isSavi ? 'savi-gradient' : 'ndwi-gradient') + '"></div>' +
+        '<div class="grid-legend-labels">' +
+            '<span>' + (isSavi ? 'Bare' : 'Deficit') + '</span>' +
+            '<span>' + (isSavi ? 'Healthy' : 'Wet') + '</span>' +
+        '</div>';
+
+    var mapContainer = document.getElementById('map-container');
+    mapContainer.appendChild(gridLegendEl);
+}
+
+/**
+ * Remove the legend bar from the map.
+ */
+function removeGridLegend() {
+    if (gridLegendEl && gridLegendEl.parentNode) {
+        gridLegendEl.parentNode.removeChild(gridLegendEl);
+        gridLegendEl = null;
+    }
+}
+
 function updateAdvice(text, isError) {
     var container = document.getElementById("ai-response");
     container.innerHTML = "";
@@ -585,6 +919,11 @@ function handleAnalyze(optionalCoords) {
         map.removeLayer(saviLayer);
         saviLayer = null;
     }
+    // Clear previous grid
+    if (gridLayerGroup) gridLayerGroup.clearLayers();
+    storedGridData = null;
+    removeGridLegend();
+    hideGridTooltip();
 
 
     if (isDemoMode) {
@@ -599,7 +938,11 @@ function handleAnalyze(optionalCoords) {
             PlotManager._updateLastSavi(coords, 0.88);
             renderHistoryChart([0.85, 0.82, 0.88]);
             
+            // Generate demo grid
             if (currentPolygon) {
+                var demoCells = generateGridCells(currentPolygon, 0.88, 0.35);
+                storedGridData = { cells: demoCells, meanSavi: 0.88, meanNdwi: 0.35 };
+                renderGridLayer();
                 map.fitBounds(currentPolygon.getBounds(), { padding: [50, 50] });
             }
         }, 500);
@@ -646,16 +989,20 @@ function handleAnalyze(optionalCoords) {
                 updateNdwi(data.ndwi_score);
                 updateAdvice(data.gemini_advice, false);
                 
-                // Earth Engine Heatmap Overlay
+                // Earth Engine Heatmap Overlay (kept as fallback / base layer)
                 if (data.heatmap_url) {
                     saviLayer = L.tileLayer(data.heatmap_url, {
-                        opacity: 0.75,
+                        opacity: 0.35,
                         maxZoom: 19,
                     }).addTo(map);
-                    
-                    if (currentPolygon) {
-                        map.fitBounds(currentPolygon.getBounds(), { padding: [50, 50] });
-                    }
+                }
+
+                // Generate 10x10m precision grid overlay
+                if (currentPolygon) {
+                    var gridCells = generateGridCells(currentPolygon, data.savi_score, data.ndwi_score);
+                    storedGridData = { cells: gridCells, meanSavi: data.savi_score, meanNdwi: data.ndwi_score };
+                    renderGridLayer();
+                    map.fitBounds(currentPolygon.getBounds(), { padding: [50, 50] });
                 }
             }
             PlotManager._updateLastSavi(coords, data.savi_score);

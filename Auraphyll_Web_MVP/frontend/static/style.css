@@ -1071,6 +1071,238 @@ body {
 }
 
 /* ==========================================
+   LAYER TOGGLE — SAVI/NDWI Segmented Control
+   ========================================== */
+.layer-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+}
+
+.layer-toggle-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.layer-toggle-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.layer-toggle-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.segmented-control {
+    position: relative;
+    display: flex;
+    background: #E2E8F0;
+    border-radius: 10px;
+    padding: 3px;
+    gap: 0;
+    overflow: hidden;
+}
+
+.seg-btn {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.25s ease;
+    white-space: nowrap;
+}
+
+.seg-btn svg {
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.25s ease;
+}
+
+.seg-btn.active {
+    color: #fff;
+}
+
+.seg-btn.active svg {
+    opacity: 1;
+}
+
+.seg-indicator {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    height: calc(100% - 6px);
+    width: calc(50% - 3px);
+    border-radius: 8px;
+    background: linear-gradient(135deg, #1B4332, #2D6A4F);
+    box-shadow: 0 2px 8px rgba(27, 67, 50, 0.35);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease;
+    z-index: 1;
+}
+
+.seg-indicator.ndwi-active {
+    transform: translateX(100%);
+    background: linear-gradient(135deg, #0D47A1, #1565C0);
+    box-shadow: 0 2px 8px rgba(21, 101, 192, 0.35);
+}
+
+/* ==========================================
+   GRID TOOLTIP — Hover/Click Info Overlay
+   ========================================== */
+.grid-tooltip {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 1000;
+    min-width: 220px;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: #fff;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.grid-tooltip.hidden {
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+}
+
+.grid-tooltip:not(.hidden) {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.grid-tooltip-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.grid-tooltip-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+#grid-tooltip-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.grid-tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.grid-tooltip-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.grid-tooltip-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.grid-tooltip-value {
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+}
+
+/* ==========================================
+   GRID LEGEND BAR — Map Overlay
+   ========================================== */
+.grid-legend-bar {
+    position: absolute;
+    bottom: 24px;
+    right: 16px;
+    z-index: 500;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.grid-legend-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 2px;
+}
+
+.grid-legend-gradient {
+    width: 140px;
+    height: 10px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.grid-legend-gradient.savi-gradient {
+    background: linear-gradient(90deg, #D32F2F, #FF9800, #CDDC39, #4CAF50, #1B5E20);
+}
+
+.grid-legend-gradient.ndwi-gradient {
+    background: linear-gradient(90deg, #D32F2F, #FF9800, #4DD0E1, #1976D2, #0D47A1);
+}
+
+.grid-legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ==========================================
    MOBILE — SCROLLABLE BOTTOM-SHEET LAYOUT
    Desktop locks are removed. Page scrolls
    naturally. Map on top, dashboard below.
@@ -1171,6 +1403,13 @@ body {
     #plot-list { max-height: 160px; }
     .plot-item { padding: 10px 14px; min-height: 48px; }
     .plot-delete-btn { width: 40px; height: 40px; }
+
+    /* Layer Toggle Mobile */
+    .layer-toggle-row { padding: 12px 14px; }
+    .seg-btn { padding: 6px 10px; font-size: 11px; }
+    .grid-tooltip { bottom: 12px; left: 12px; min-width: 180px; padding: 12px 14px; border-radius: 10px; }
+    .grid-legend-bar { bottom: 12px; right: 10px; padding: 8px 10px; }
+    .grid-legend-gradient { width: 100px; }
 
     /* 6. LEAFLET ZOOM CONTROLS — safe to resize (text-based +/−) */
     .leaflet-touch .leaflet-control-zoom a {
