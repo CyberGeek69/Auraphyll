@@ -1071,12 +1071,13 @@ body {
 }
 
 /* ==========================================
-   LAYER TOGGLE — SAVI/NDWI Segmented Control
+   LAYER TOGGLE — SAVI/NDWI Slider Switch
    ========================================== */
 .layer-toggle-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 14px;
     padding: 14px 18px;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1084,84 +1085,75 @@ body {
     box-shadow: var(--shadow-sm);
 }
 
-.layer-toggle-label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.layer-toggle-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text);
-}
-
-.layer-toggle-hint {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-weight: 400;
-}
-
-.segmented-control {
-    position: relative;
-    display: flex;
-    background: #E2E8F0;
-    border-radius: 10px;
-    padding: 3px;
-    gap: 0;
-    overflow: hidden;
-}
-
-.seg-btn {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 7px 14px;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    font-family: inherit;
+.layer-side-label {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-muted);
-    cursor: pointer;
-    transition: color 0.25s ease;
+    letter-spacing: 0.2px;
+    transition: color 0.3s ease, opacity 0.3s ease;
+    cursor: default;
+    user-select: none;
     white-space: nowrap;
 }
 
-.seg-btn svg {
+.layer-side-label.active {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.layer-side-label.savi-side.active {
+    color: #006400;
+}
+
+.layer-side-label.ndwi-side.active {
+    color: #00008B;
+}
+
+/* The Toggle Switch Itself */
+.layer-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 54px;
+    height: 28px;
     flex-shrink: 0;
-    opacity: 0.6;
-    transition: opacity 0.25s ease;
+    cursor: pointer;
 }
 
-.seg-btn.active {
-    color: #fff;
+.layer-toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
 }
 
-.seg-btn.active svg {
-    opacity: 1;
+.layer-toggle-track {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #1B4332, #2D6A4F);
+    border-radius: 100px;
+    transition: background 0.35s ease, box-shadow 0.35s ease;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-.seg-indicator {
+.layer-toggle-thumb {
     position: absolute;
     top: 3px;
     left: 3px;
-    height: calc(100% - 6px);
-    width: calc(50% - 3px);
-    border-radius: 8px;
-    background: linear-gradient(135deg, #1B4332, #2D6A4F);
-    box-shadow: 0 2px 8px rgba(27, 67, 50, 0.35);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, box-shadow 0.3s ease;
-    z-index: 1;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.seg-indicator.ndwi-active {
-    transform: translateX(100%);
+/* Checked = NDWI mode */
+.layer-toggle-switch input:checked + .layer-toggle-track {
     background: linear-gradient(135deg, #0D47A1, #1565C0);
-    box-shadow: 0 2px 8px rgba(21, 101, 192, 0.35);
+}
+
+.layer-toggle-switch input:checked + .layer-toggle-track .layer-toggle-thumb {
+    transform: translateX(26px);
 }
 
 /* ==========================================
@@ -1287,11 +1279,11 @@ body {
 }
 
 .grid-legend-gradient.savi-gradient {
-    background: linear-gradient(90deg, #D32F2F, #FF9800, #CDDC39, #4CAF50, #1B5E20);
+    background: linear-gradient(90deg, #8B0000, #FF8C00, #FFD700, #ADFF2F, #32CD32, #006400);
 }
 
 .grid-legend-gradient.ndwi-gradient {
-    background: linear-gradient(90deg, #D32F2F, #FF9800, #4DD0E1, #1976D2, #0D47A1);
+    background: linear-gradient(90deg, #800000, #FF4500, #FFD700, #00FFFF, #1E90FF, #00008B);
 }
 
 .grid-legend-labels {
@@ -1405,8 +1397,8 @@ body {
     .plot-delete-btn { width: 40px; height: 40px; }
 
     /* Layer Toggle Mobile */
-    .layer-toggle-row { padding: 12px 14px; }
-    .seg-btn { padding: 6px 10px; font-size: 11px; }
+    .layer-toggle-row { padding: 12px 14px; gap: 10px; }
+    .layer-side-label { font-size: 11px; }
     .grid-tooltip { bottom: 12px; left: 12px; min-width: 180px; padding: 12px 14px; border-radius: 10px; }
     .grid-legend-bar { bottom: 12px; right: 10px; padding: 8px 10px; }
     .grid-legend-gradient { width: 100px; }

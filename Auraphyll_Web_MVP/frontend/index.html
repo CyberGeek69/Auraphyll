@@ -83,21 +83,14 @@
                 </div>
 
                 <div class="layer-toggle-row" id="layer-toggle-row">
-                    <div class="layer-toggle-label">
-                        <span class="layer-toggle-title">Map Layer</span>
-                        <span class="layer-toggle-hint">Switch heatmap index</span>
-                    </div>
-                    <div class="segmented-control" id="layer-segmented-control">
-                        <button class="seg-btn active" id="seg-savi" data-layer="savi">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75" stroke="currentColor" stroke-width="2" fill="none"/></svg>
-                            SAVI
-                        </button>
-                        <button class="seg-btn" id="seg-ndwi" data-layer="ndwi">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2c0-3.32-2.67-7.25-8-11.8z" fill="currentColor"/></svg>
-                            NDWI
-                        </button>
-                        <div class="seg-indicator" id="seg-indicator"></div>
-                    </div>
+                    <span class="layer-side-label savi-side active" id="label-savi">SAVI (Health)</span>
+                    <label class="layer-toggle-switch" id="layer-toggle-switch">
+                        <input type="checkbox" id="layer-toggle-checkbox">
+                        <span class="layer-toggle-track">
+                            <span class="layer-toggle-thumb"></span>
+                        </span>
+                    </label>
+                    <span class="layer-side-label ndwi-side" id="label-ndwi">NDWI (Moisture)</span>
                 </div>
 
                 <div class="meter-section">

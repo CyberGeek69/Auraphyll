@@ -298,7 +298,7 @@ function initMap() {
                     weight: 2.5,
                     opacity: 0.9,
                     fillColor: "#1B5E20",
-                    fillOpacity: 0.18,
+                    fillOpacity: 0,
                 },
             },
             polyline: false,
@@ -374,20 +374,20 @@ function initMap() {
         }
     });
 
-    // SAVI/NDWI Layer Toggle Wiring (Action 4)
-    var segSavi = document.getElementById('seg-savi');
-    var segNdwi = document.getElementById('seg-ndwi');
-    var segIndicator = document.getElementById('seg-indicator');
+    // SAVI/NDWI Layer Toggle Wiring — Slider Checkbox
+    var layerToggleCheckbox = document.getElementById('layer-toggle-checkbox');
+    var labelSavi = document.getElementById('label-savi');
+    var labelNdwi = document.getElementById('label-ndwi');
 
     function setActiveLayer(layer) {
         activeLayer = layer;
 
-        // Update button states
-        segSavi.classList.toggle('active', layer === 'savi');
-        segNdwi.classList.toggle('active', layer === 'ndwi');
+        // Update label active states
+        labelSavi.classList.toggle('active', layer === 'savi');
+        labelNdwi.classList.toggle('active', layer === 'ndwi');
 
-        // Animate indicator
-        segIndicator.classList.toggle('ndwi-active', layer === 'ndwi');
+        // Sync checkbox state (unchecked = SAVI, checked = NDWI)
+        layerToggleCheckbox.checked = (layer === 'ndwi');
 
         // Re-render grid with new color scale — NO new API call
         if (storedGridData && storedGridData.cells.length > 0) {
@@ -397,8 +397,13 @@ function initMap() {
         showToast('Switched to ' + (layer === 'savi' ? 'SAVI (Vegetation Health)' : 'NDWI (Water Stress)') + ' layer.', 'info', 2000);
     }
 
-    segSavi.addEventListener('click', function () { setActiveLayer('savi'); });
-    segNdwi.addEventListener('click', function () { setActiveLayer('ndwi'); });
+    layerToggleCheckbox.addEventListener('change', function () {
+        setActiveLayer(this.checked ? 'ndwi' : 'savi');
+    });
+
+    // Also allow clicking the labels to toggle
+    labelSavi.addEventListener('click', function () { setActiveLayer('savi'); });
+    labelNdwi.addEventListener('click', function () { setActiveLayer('ndwi'); });
 
     document.getElementById('clearMap').addEventListener('click', function () {
         // Clear drawn polygons
@@ -570,51 +575,63 @@ function metersPerDegree(lat) {
 }
 
 /**
- * Get SAVI fill color using strict agronomic scale.
- * Score >= 0.5: Deep Green (Healthy)
- * Score 0.3-0.49: Light Green/Yellow-Green (Slight Stress)
- * Score 0.1-0.29: Yellow/Orange (Moderate Stress)
- * Score < 0.1: Red (Severe Stress/Bare Soil)
+ * Get SAVI fill color using expanded 6-stop agronomic scale.
+ * >= 0.6:        #006400 (Deep Dark Green — Optimal)
+ * 0.4 to 0.59:   #32CD32 (Lime Green — Healthy)
+ * 0.2 to 0.39:   #ADFF2F (Yellow-Green — Mild Stress)
+ * 0.0 to 0.19:   #FFD700 (Yellow — Moderate Stress)
+ * -0.2 to -0.01: #FF8C00 (Dark Orange — Severe Stress)
+ * < -0.2:        #8B0000 (Deep Red — Critical/Dead)
  */
 function getSaviFillColor(score) {
-    if (score >= 0.5) return '#1B5E20';  // Deep Green
-    if (score >= 0.3) return '#8BC34A';  // Yellow-Green
-    if (score >= 0.1) return '#FF9800';  // Orange
-    return '#D32F2F';                     // Red
+    if (score >= 0.6)  return '#006400';  // Deep Dark Green — Optimal
+    if (score >= 0.4)  return '#32CD32';  // Lime Green — Healthy
+    if (score >= 0.2)  return '#ADFF2F';  // Yellow-Green — Mild Stress
+    if (score >= 0.0)  return '#FFD700';  // Yellow — Moderate Stress
+    if (score >= -0.2) return '#FF8C00';  // Dark Orange — Severe Stress
+    return '#8B0000';                      // Deep Red — Critical/Dead
 }
 
 /**
- * Get NDWI fill color using strict agronomic scale.
- * Score >= 0.2: Deep Blue (High Moisture)
- * Score 0.0-0.19: Light Blue/Cyan (Adequate Moisture)
- * Score -0.2 to -0.01: Yellow/Light Orange (Drying)
- * Score < -0.2: Deep Red (Severe Water Deficit)
+ * Get NDWI fill color using expanded 6-stop agronomic scale.
+ * >= 0.3:         #00008B (Deep Blue — Saturated)
+ * 0.1 to 0.29:    #1E90FF (Dodger Blue — Good Moisture)
+ * -0.1 to 0.09:   #00FFFF (Cyan — Borderline)
+ * -0.3 to -0.11:  #FFD700 (Yellow — Mild Drying)
+ * -0.5 to -0.31:  #FF4500 (Orange-Red — Drought Stress)
+ * < -0.5:         #800000 (Maroon — Extreme Water Deficit)
  */
 function getNdwiFillColor(score) {
-    if (score >= 0.2) return '#0D47A1';   // Deep Blue
-    if (score >= 0.0) return '#4DD0E1';   // Cyan
-    if (score >= -0.2) return '#FFB74D';  // Light Orange
-    return '#D32F2F';                      // Deep Red
+    if (score >= 0.3)  return '#00008B';  // Deep Blue — Saturated
+    if (score >= 0.1)  return '#1E90FF';  // Dodger Blue — Good Moisture
+    if (score >= -0.1) return '#00FFFF';  // Cyan — Borderline
+    if (score >= -0.3) return '#FFD700';  // Yellow — Mild Drying
+    if (score >= -0.5) return '#FF4500';  // Orange-Red — Drought Stress
+    return '#800000';                      // Maroon — Extreme Water Deficit
 }
 
 /**
- * Get status text for a SAVI score.
+ * Get status text for a SAVI score (6 levels).
  */
 function getSaviStatus(score) {
-    if (score >= 0.5) return 'Healthy';
-    if (score >= 0.3) return 'Slight Stress';
-    if (score >= 0.1) return 'Moderate Stress';
-    return 'Severe Stress';
+    if (score >= 0.6)  return 'Optimal';
+    if (score >= 0.4)  return 'Healthy';
+    if (score >= 0.2)  return 'Mild Stress';
+    if (score >= 0.0)  return 'Moderate Stress';
+    if (score >= -0.2) return 'Severe Stress';
+    return 'Critical / Dead';
 }
 
 /**
- * Get status text for an NDWI score.
+ * Get status text for an NDWI score (6 levels).
  */
 function getNdwiStatus(score) {
-    if (score >= 0.2) return 'High Moisture';
-    if (score >= 0.0) return 'Adequate';
-    if (score >= -0.2) return 'Drying';
-    return 'Water Deficit';
+    if (score >= 0.3)  return 'Saturated';
+    if (score >= 0.1)  return 'Good Moisture';
+    if (score >= -0.1) return 'Borderline';
+    if (score >= -0.3) return 'Mild Drying';
+    if (score >= -0.5) return 'Drought Stress';
+    return 'Extreme Deficit';
 }
 
 /**
@@ -668,7 +685,7 @@ function generateGridCells(polygon, meanSavi, meanNdwi) {
             // Deterministic spatial variation using a simple hash
             var hash = Math.sin(cellIndex * 127.1 + lat * 311.7) * 43758.5453;
             hash = hash - Math.floor(hash); // 0-1
-            var variation = (hash - 0.5) * 0.3; // ±0.15 variation
+            var variation = (hash - 0.5) * 0.5; // ±0.25 variation for high contrast
 
             var cellSavi = Math.max(-0.5, Math.min(1.0, meanSavi + variation));
             var cellNdwi = Math.max(-1.0, Math.min(1.0, meanNdwi + variation * 0.8));
