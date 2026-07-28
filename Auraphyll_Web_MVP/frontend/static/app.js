@@ -22,7 +22,7 @@ var PRIMARY = "#1B5E20";
 var AMBER = "#FFC107";
 var DANGER = "#D32F2F";
 var BORDER_COLOR = "#E5E7EB";
-var API_URL = "/api/analyze";
+var API_URL = (window.location.protocol === "file:") ? "http://127.0.0.1:8000/api/analyze" : "/api/analyze";
 
 var STORAGE_KEY = "auraphyll_plots";
 var savedPlotsLayerGroup = null;
@@ -1595,4 +1595,8 @@ window.addEventListener("resize", function () {
 /* ==========================================
    INIT
    ========================================== */
-document.addEventListener("DOMContentLoaded", initMap);
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initMap);
+} else {
+    initMap();
+}

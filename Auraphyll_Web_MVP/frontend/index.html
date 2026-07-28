@@ -21,7 +21,7 @@
     <!-- Leaflet.draw plugin (unpkg serves full package incl. sprite images) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
 
-    <link rel="stylesheet" href="./static/style.css">
+    <link rel="stylesheet" href="static/style.css">
 </head>
 
 <body>
@@ -203,11 +203,11 @@
     <!-- html2pdf.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-    <script src="/static/app.js"></script>
+    <script src="static/app.js"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/service-worker.js')
+          navigator.serviceWorker.register('service-worker.js')
             .then(reg => console.log('PWA Service Worker registered flawlessly'))
             .catch(err => console.error('PWA Registration failed:', err));
         });
